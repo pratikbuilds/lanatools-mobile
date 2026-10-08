@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Pressable } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { CSS_EASE_OUT, PRESS_MS } from '../theme/motion'
-import type { ReactNode } from 'react'
-import type { PressableProps, StyleProp, ViewStyle } from 'react-native'
+import type { ComponentProps, ReactNode } from 'react'
+import type { PressableProps } from 'react-native'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+type Style = ComponentProps<typeof AnimatedPressable>['style']
 
 /**
  * A pressable that answers the moment a finger lands: it settles to 97%
@@ -21,11 +22,11 @@ export function PressableScale({
   ...props
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: ReactNode
-  style?: StyleProp<ViewStyle>
+  style?: Style
   /** Off for full-width rows inside a card, which press by tint alone. */
   scale?: boolean
   /** Extra style while pressed, such as a darker border. */
-  pressedStyle?: StyleProp<ViewStyle>
+  pressedStyle?: Style
 }) {
   const [pressed, setPressed] = useState(false)
   const active = pressed && !disabled

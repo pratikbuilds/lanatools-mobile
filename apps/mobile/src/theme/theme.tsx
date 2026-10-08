@@ -9,17 +9,20 @@ import type { Palette, ThemeName } from './tokens'
 // The same key the dashboard keeps its choice under.
 const KEY = 'lt-theme'
 
+export type Preference = 'system' | ThemeName
+
 type Theme = {
   name: ThemeName
   colors: Palette
-  toggle: () => void
+  preference: Preference
+  setPreference: (preference: Preference) => void
 }
 
 const ThemeContext = createContext<Theme | null>(null)
 
 /**
- * The colour theme. It follows the system until the user picks one, and the
- * pick is remembered on this device, as on the dashboard.
+ * The colour theme. It follows the system until the user picks light or
+ * dark in settings, and the pick is remembered on this device.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme()
@@ -45,13 +48,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => ({
       name,
       colors: palettes[name],
-      toggle: () => {
-        const next = name === 'dark' ? 'light' : 'dark'
-        setPicked(next)
-        SecureStore.setItemAsync(KEY, next).catch(() => {})
+      preference: picked ?? 'system',
+      setPreference: (preference) => {
+        setPicked(preference === 'system' ? null : preference)
+        const write =
+          preference === 'system'
+            ? SecureStore.deleteItemAsync(KEY)
+            : SecureStore.setItemAsync(KEY, preference)
+        write.catch(() => {})
       },
     }),
-    [name],
+    [name, picked],
   )
 
   return <ThemeContext value={value}>{children}</ThemeContext>

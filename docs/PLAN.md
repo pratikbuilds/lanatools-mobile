@@ -282,7 +282,19 @@ controller`). The send button is filled only once there is text.
    - Theme: system, light or dark.
    - LanaTools connection and a link to the dashboard.
    - Disconnect and sign out.
-6. **Conversations drawer** (milestone 5): past chats, and new chat.
+6. **Conversations drawer.** Opened by the menu button or a drag from the
+   edge; the screen slides aside to reveal it.
+   - A new-chat button and search.
+   - Past chats grouped by Today, Yesterday, Previous 7 days and Older.
+     Long-press a chat to delete it.
+   - The wallet and Settings at the foot.
+7. **Settings**: account, LanaTools status and limit, theme, about, sign out.
+
+The UI is built against a mock agent (`EXPO_PUBLIC_MOCK_AGENT=1` in
+`apps/mobile/.env`). It plays back scripted LanaTools tool calls, streams
+replies, prepares a swap to sign, and signs in to a mock wallet. Its message
+parts match Flue's (text, reasoning, tool), so the real agent replaces it in
+milestone 3 without UI changes.
 
 ## Auth and security
 

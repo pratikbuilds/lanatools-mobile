@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { useReducedMotion } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { ConversationsProvider } from '../agent/store'
 import { DraftProvider } from '../chat/draft'
 import { SessionProvider } from '../session/session'
 import { ThemeProvider, useTheme } from '../theme/theme'
@@ -18,6 +19,12 @@ void SplashScreen.preventAutoHideAsync()
 function Screens() {
   const { colors } = useTheme()
   const reduced = useReducedMotion()
+  const sheet = {
+    presentation: 'formSheet' as const,
+    sheetAllowedDetents: 'fitToContents' as const,
+    sheetCornerRadius: radius.frame + 4,
+    contentStyle: { backgroundColor: colors.panel },
+  }
   useEffect(() => {
     SplashScreen.hide()
   }, [])
@@ -31,17 +38,12 @@ function Screens() {
       }}
     >
       <Stack.Screen name="index" />
-      {/* A short interruption, so the platform's own bottom sheet: it drags,
+      <Stack.Screen name="settings" />
+      {/* Short interruptions, so the platform's own bottom sheet: it drags,
           dims, and closes on back for free. */}
-      <Stack.Screen
-        name="sign-in"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetCornerRadius: radius.frame + 4,
-          contentStyle: { backgroundColor: colors.panel },
-        }}
-      />
+      <Stack.Screen name="sign-in" options={sheet} />
+      <Stack.Screen name="tools" options={sheet} />
+      <Stack.Screen name="transaction" options={sheet} />
     </Stack>
   )
 }
@@ -53,9 +55,11 @@ export default function RootLayout() {
         <KeyboardProvider>
           <ThemeProvider>
             <SessionProvider>
-              <DraftProvider>
-                <Screens />
-              </DraftProvider>
+              <ConversationsProvider>
+                <DraftProvider>
+                  <Screens />
+                </DraftProvider>
+              </ConversationsProvider>
             </SessionProvider>
           </ThemeProvider>
         </KeyboardProvider>

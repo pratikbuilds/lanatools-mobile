@@ -1,26 +1,22 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BrandMark } from '../brand/BrandMark'
 import { useTheme } from '../theme/theme'
-import { fonts } from '../theme/tokens'
+import { fonts, radius } from '../theme/tokens'
 import { PressableScale } from './PressableScale'
 import type { ReactNode } from 'react'
 
 /**
- * The top app bar: the mark and a title on the left, one action on the
- * right. It sits on the page colour and draws its hairline only once content
- * scrolls beneath it.
+ * The top app bar: a leading action, the title, and trailing actions. It
+ * sits on the page colour with the dashboard's hairline beneath it.
  */
 export function AppBar({
   title,
-  right,
-  raised = false,
-  animateMark = false,
+  leading,
+  trailing,
 }: {
-  title: string
-  right?: ReactNode
-  raised?: boolean
-  animateMark?: boolean
+  title: ReactNode
+  leading?: ReactNode
+  trailing?: ReactNode
 }) {
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
@@ -31,23 +27,56 @@ export function AppBar({
         {
           paddingTop: insets.top,
           backgroundColor: colors.bg,
-          borderBottomColor: raised ? colors.line : 'transparent',
+          borderBottomColor: colors.line,
         },
       ]}
     >
       <View style={styles.row}>
-        <BrandMark size={24} color={colors.text} animate={animateMark} />
-        <Text
-          style={[styles.title, { color: colors.text }]}
-          numberOfLines={1}
-          accessibilityRole="header"
-          maxFontSizeMultiplier={1.3}
-        >
-          {title}
-        </Text>
-        {right && <View style={styles.right}>{right}</View>}
+        {leading}
+        <View style={styles.title}>{title}</View>
+        {trailing && <View style={styles.trailing}>{trailing}</View>}
       </View>
     </View>
+  )
+}
+
+/** The bar's title text: mono, one line. */
+export function BarTitle({ children }: { children: string }) {
+  const { colors } = useTheme()
+  return (
+    <Text
+      style={[styles.titleText, { color: colors.text }]}
+      numberOfLines={1}
+      accessibilityRole="header"
+      maxFontSizeMultiplier={1.3}
+    >
+      {children}
+    </Text>
+  )
+}
+
+/** A 44dp icon action in the bar. */
+export function BarIcon({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: ReactNode
+  label: string
+  onPress: () => void
+}) {
+  const { colors } = useTheme()
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={4}
+      style={styles.icon}
+      pressedStyle={{ backgroundColor: colors.panel2 }}
+    >
+      {icon}
+    </PressableScale>
   )
 }
 
@@ -93,17 +122,29 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
+    gap: 4,
+    paddingHorizontal: 6,
   },
-  title: {
-    flexShrink: 1,
+  title: { flex: 1, paddingHorizontal: 6 },
+  titleText: {
     fontFamily: fonts.mono,
     fontWeight: '600',
     fontSize: 15,
     letterSpacing: 15 * -0.02,
   },
-  right: { marginLeft: 'auto' },
+  trailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 10,
+  },
+  icon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.button,
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
