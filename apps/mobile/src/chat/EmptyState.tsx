@@ -1,5 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
+import { ArrowUpRightIcon } from 'phosphor-react-native/src/icons/ArrowUpRight'
 import { useKeyboardState } from 'react-native-keyboard-controller'
 import Animated, {
   FadeInDown,
@@ -10,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BrandMark } from '../brand/BrandMark'
 import { Clear, FieldArea } from '../components/FieldArea'
 import { PressableScale } from '../components/PressableScale'
+import { Hatch } from '../components/surfaces'
 import { Body, Label } from '../components/text'
 import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
@@ -17,19 +19,16 @@ import { fonts, radius } from '../theme/tokens'
 import type { SharedValue } from 'react-native-reanimated'
 
 // Starting points the LanaTools tools can answer, one per tool family.
+// Short enough to sit on one line at the default text size.
 export const SUGGESTIONS = [
   { source: 'Helius', prompt: 'What’s in my wallet?' },
-  { source: 'Jupiter', prompt: 'What are SOL and JUP trading at?' },
-  { source: 'Phoenix', prompt: 'Show me the SOL perps order book' },
-  { source: 'pay.sh', prompt: 'Find a paid API for weather data' },
+  { source: 'Jupiter', prompt: 'Price of SOL and JUP' },
+  { source: 'Phoenix', prompt: 'SOL perps order book' },
+  { source: 'pay.sh', prompt: 'Find a paid weather API' },
 ] as const
 
-// Built once at module scope; a per-index delay staggers the row 40ms apart.
-const CHIP_IN = SUGGESTIONS.map((_, index) =>
-  FadeInDown.duration(250)
-    .delay(150 + index * 40)
-    .easing(EASE_OUT),
-)
+// The list arrives once, after the greeting; built at module scope.
+const LIST_IN = FadeInDown.duration(250).delay(150).easing(EASE_OUT)
 
 /**
  * A new conversation: the mark and one question on the side-field pattern,
@@ -54,7 +53,7 @@ export function EmptyState({
       { translateY: Math.min(0, keyboard.height.get() + insets.bottom) / 2 },
     ],
   }))
-  const chipsStyle = useAnimatedStyle(() => ({
+  const listStyle = useAnimatedStyle(() => ({
     opacity: interpolate(keyboard.progress.get(), [0, 0.6], [1, 0], 'clamp'),
   }))
   const fieldStyle = useAnimatedStyle(() => ({
@@ -83,44 +82,63 @@ export function EmptyState({
       </View>
       <Clear id="suggestions" style={styles.suggestions}>
         <Animated.View
-          style={chipsStyle}
+          style={listStyle}
           pointerEvents={typing ? 'none' : 'auto'}
           accessibilityElementsHidden={typing}
         >
-          <Label style={styles.suggestionsLabel}>Try</Label>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chips}
-            keyboardShouldPersistTaps="handled"
+          {/* The dashboard's ledger table: a hatched head, hairline rows,
+              the prompt first and the tool that answers it after. */}
+          <Animated.View
+            entering={LIST_IN}
+            style={[
+              styles.list,
+              { backgroundColor: colors.panel, borderColor: colors.line },
+            ]}
           >
+            <View
+              style={[
+                styles.head,
+                {
+                  backgroundColor: colors.panel2,
+                  borderBottomColor: colors.line,
+                },
+              ]}
+            >
+              <Hatch />
+              <Label>Try asking</Label>
+            </View>
             {SUGGESTIONS.map((item, index) => (
-              <Animated.View key={item.prompt} entering={CHIP_IN[index]}>
-                <PressableScale
-                  onPress={() => {
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                    onPick(item.prompt)
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.prompt}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: colors.panel, borderColor: colors.line },
-                  ]}
-                  pressedStyle={{ borderColor: colors.line2 }}
+              <PressableScale
+                key={item.prompt}
+                scale={false}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  onPick(item.prompt)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={item.prompt}
+                accessibilityHint={`Asks your agent, using ${item.source}`}
+                style={[
+                  styles.row,
+                  index > 0 && {
+                    borderTopWidth: 1,
+                    borderTopColor: colors.line,
+                  },
+                ]}
+                pressedStyle={{ backgroundColor: colors.panel2 }}
+              >
+                <Text
+                  style={[styles.prompt, { color: colors.text }]}
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
                 >
-                  <Label>{item.source}</Label>
-                  <Text
-                    style={[styles.chipText, { color: colors.text }]}
-                    maxFontSizeMultiplier={1.3}
-                    numberOfLines={2}
-                  >
-                    {item.prompt}
-                  </Text>
-                </PressableScale>
-              </Animated.View>
+                  {item.prompt}
+                </Text>
+                <Label>{item.source}</Label>
+                <ArrowUpRightIcon size={14} color={colors.text3} />
+              </PressableScale>
             ))}
-          </ScrollView>
+          </Animated.View>
         </Animated.View>
       </Clear>
     </FieldArea>
@@ -145,22 +163,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lede: { marginTop: 10, textAlign: 'center', maxWidth: 300 },
-  suggestions: { paddingBottom: 10 },
-  suggestionsLabel: { paddingHorizontal: 16, marginBottom: 8 },
-  chips: { gap: 8, paddingHorizontal: 16 },
-  chip: {
-    width: 196,
-    minHeight: 84,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    gap: 7,
+  suggestions: { paddingHorizontal: 16, paddingBottom: 6 },
+  list: {
     borderWidth: 1,
     borderRadius: radius.card,
+    overflow: 'hidden',
   },
-  chipText: {
+  head: {
+    height: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 50,
+    paddingHorizontal: 14,
+  },
+  prompt: {
+    flex: 1,
     fontFamily: fonts.sans,
     fontWeight: '500',
-    fontSize: 14.5,
-    lineHeight: 19,
+    fontSize: 15,
   },
 })

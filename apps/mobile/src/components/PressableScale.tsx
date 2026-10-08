@@ -16,11 +16,14 @@ export function PressableScale({
   children,
   style,
   pressedStyle,
+  scale = true,
   disabled,
   ...props
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: ReactNode
   style?: StyleProp<ViewStyle>
+  /** Off for full-width rows inside a card, which press by tint alone. */
+  scale?: boolean
   /** Extra style while pressed, such as a darker border. */
   pressedStyle?: StyleProp<ViewStyle>
 }) {
@@ -41,7 +44,7 @@ export function PressableScale({
       pressRetentionOffset={16}
       style={[
         {
-          transform: [{ scale: active ? 0.97 : 1 }],
+          transform: [{ scale: active && scale ? 0.97 : 1 }],
           transitionProperty: ['transform', 'backgroundColor', 'borderColor'],
           transitionDuration: PRESS_MS,
           transitionTimingFunction: CSS_EASE_OUT,

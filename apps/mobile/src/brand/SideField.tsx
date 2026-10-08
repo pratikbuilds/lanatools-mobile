@@ -184,8 +184,8 @@ export type Box = { x: number; y: number; width: number; height: number }
 
 // Marks keep this far from content, and reach full strength this far out:
 // the phone's version of the web's fade towards the page column.
-const GAP = 10
-const FADE = 64
+const GAP = 14
+const FADE = 120
 
 /** Distance from a point to a box; 0 inside it. */
 function distance(px: number, py: number, box: Box) {
@@ -231,8 +231,8 @@ const Field = memo(function Field({
       .map((mark) => ({
         ...mark,
         o:
-          0.3 +
-          0.7 *
+          0.12 +
+          0.88 *
             Math.min(1, near(mark.x + mark.s / 2, mark.y + mark.s / 2) / FADE),
       }))
     const links = field.links
