@@ -1,6 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { ArrowUpRightIcon } from 'phosphor-react-native/src/icons/ArrowUpRight'
 import { useKeyboardState } from 'react-native-keyboard-controller'
 import Animated, {
   FadeInDown,
@@ -9,6 +8,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BrandMark } from '../brand/BrandMark'
+import { LineIcon } from '../brand/SideField'
+import type { IconName } from '../brand/SideField'
 import { Clear, FieldArea } from '../components/FieldArea'
 import { PressableScale } from '../components/PressableScale'
 import { Hatch } from '../components/surfaces'
@@ -18,17 +19,25 @@ import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { SharedValue } from 'react-native-reanimated'
 
-// Starting points the LanaTools tools can answer, one per tool family.
-// Short enough to sit on one line at the default text size.
+// Starting points the LanaTools tools can answer, one per tool family,
+// each with the line icon from the side field that says what it does.
 export const SUGGESTIONS = [
-  { source: 'Helius', prompt: 'What’s in my wallet?' },
-  { source: 'Jupiter', prompt: 'Price of SOL and JUP' },
-  { source: 'Phoenix', prompt: 'SOL perps order book' },
-  { source: 'pay.sh', prompt: 'Find a paid weather API' },
-] as const
+  { source: 'Helius', prompt: 'What’s in my wallet?', icon: 'wallet' },
+  { source: 'Jupiter', prompt: 'Price of SOL and JUP', icon: 'coin' },
+  { source: 'Phoenix', prompt: 'SOL perps order book', icon: 'chart' },
+  { source: 'pay.sh', prompt: 'Find a paid weather API', icon: 'search' },
+] as const satisfies readonly {
+  source: string
+  prompt: string
+  icon: IconName
+}[]
 
-// The list arrives once, after the greeting; built at module scope.
-const LIST_IN = FadeInDown.duration(250).delay(150).easing(EASE_OUT)
+// Built once at module scope; a per-index delay staggers them 40ms apart.
+const CARD_IN = SUGGESTIONS.map((_, index) =>
+  FadeInDown.duration(250)
+    .delay(150 + index * 40)
+    .easing(EASE_OUT),
+)
 
 /**
  * A new conversation: the mark and one question on the side-field pattern,
@@ -86,59 +95,56 @@ export function EmptyState({
           pointerEvents={typing ? 'none' : 'auto'}
           accessibilityElementsHidden={typing}
         >
-          {/* The dashboard's ledger table: a hatched head, hairline rows,
-              the prompt first and the tool that answers it after. */}
-          <Animated.View
-            entering={LIST_IN}
-            style={[
-              styles.list,
-              { backgroundColor: colors.panel, borderColor: colors.line },
-            ]}
+          <Label style={styles.label}>Try asking</Label>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cards}
+            keyboardShouldPersistTaps="handled"
+            decelerationRate="fast"
           >
-            <View
-              style={[
-                styles.head,
-                {
-                  backgroundColor: colors.panel2,
-                  borderBottomColor: colors.line,
-                },
-              ]}
-            >
-              <Hatch />
-              <Label>Try asking</Label>
-            </View>
             {SUGGESTIONS.map((item, index) => (
-              <PressableScale
-                key={item.prompt}
-                scale={false}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                  onPick(item.prompt)
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={item.prompt}
-                accessibilityHint={`Asks your agent, using ${item.source}`}
-                style={[
-                  styles.row,
-                  index > 0 && {
-                    borderTopWidth: 1,
-                    borderTopColor: colors.line,
-                  },
-                ]}
-                pressedStyle={{ backgroundColor: colors.panel2 }}
-              >
-                <Text
-                  style={[styles.prompt, { color: colors.text }]}
-                  maxFontSizeMultiplier={1.3}
-                  numberOfLines={1}
+              <Animated.View key={item.prompt} entering={CARD_IN[index]}>
+                <PressableScale
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    onPick(item.prompt)
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.prompt}
+                  accessibilityHint={`Asks your agent, using ${item.source}`}
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.panel, borderColor: colors.line },
+                  ]}
+                  pressedStyle={{ borderColor: colors.line2 }}
                 >
-                  {item.prompt}
-                </Text>
-                <Label>{item.source}</Label>
-                <ArrowUpRightIcon size={14} color={colors.text3} />
-              </PressableScale>
+                  <View
+                    style={[
+                      styles.tile,
+                      {
+                        backgroundColor: colors.panel2,
+                        borderColor: colors.line,
+                      },
+                    ]}
+                  >
+                    <Hatch />
+                    <LineIcon name={item.icon} size={18} color={colors.text} />
+                  </View>
+                  <View style={styles.cardText}>
+                    <Text
+                      style={[styles.prompt, { color: colors.text }]}
+                      maxFontSizeMultiplier={1.3}
+                      numberOfLines={1}
+                    >
+                      {item.prompt}
+                    </Text>
+                    <Label>{item.source}</Label>
+                  </View>
+                </PressableScale>
+              </Animated.View>
             ))}
-          </Animated.View>
+          </ScrollView>
         </Animated.View>
       </Clear>
     </FieldArea>
@@ -163,27 +169,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lede: { marginTop: 10, textAlign: 'center', maxWidth: 300 },
-  suggestions: { paddingHorizontal: 16, paddingBottom: 6 },
-  list: {
-    borderWidth: 1,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-  },
-  head: {
-    height: 34,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-  },
-  row: {
+  suggestions: { paddingBottom: 6 },
+  label: { paddingHorizontal: 16, marginBottom: 8 },
+  cards: { gap: 8, paddingHorizontal: 16 },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 50,
-    paddingHorizontal: 14,
+    gap: 12,
+    height: 64,
+    paddingLeft: 12,
+    paddingRight: 18,
+    borderWidth: 1,
+    borderRadius: radius.card,
   },
+  tile: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: radius.field,
+    overflow: 'hidden',
+  },
+  cardText: { gap: 4 },
   prompt: {
-    flex: 1,
     fontFamily: fonts.sans,
     fontWeight: '500',
     fontSize: 15,

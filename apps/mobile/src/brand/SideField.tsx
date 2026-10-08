@@ -136,25 +136,20 @@ function scatter(width: number, height: number, seed: number) {
     }
   }
   // A few dashed links between near neighbours, like a small network.
-  const links: [number, number, number, number][] = []
+  // Stored as the two marks' indices, so a link goes when either mark does.
+  const links: [number, number][] = []
   for (const [i, p] of marks.entries()) {
     if (rnd() > 0.3) continue
-    let best: Mark | undefined
+    let best = -1
     let distance = Infinity
     for (const [j, q] of marks.entries()) {
       const d = Math.hypot(q.x - p.x, q.y - p.y)
       if (j !== i && d < distance) {
         distance = d
-        best = q
+        best = j
       }
     }
-    if (best && distance < 90)
-      links.push([
-        p.x + p.s / 2,
-        p.y + p.s / 2,
-        best.x + best.s / 2,
-        best.y + best.s / 2,
-      ])
+    if (best >= 0 && distance < 90) links.push([i, best])
   }
   return { marks, links }
 }
@@ -178,6 +173,35 @@ function Part({ shape }: { shape: Shape }) {
     case 'ellipse':
       return <Ellipse cx={shape[1]} cy={shape[2]} rx={shape[3]} ry={shape[4]} />
   }
+}
+
+export type IconName = keyof typeof ICONS
+
+/** One of the field's line icons on its own, at the field's 1.5 stroke. */
+export function LineIcon({
+  name,
+  size = 20,
+  color,
+}: {
+  name: IconName
+  size?: number
+  color: string
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <G
+        fill="none"
+        stroke={color}
+        strokeWidth={(1.5 * 24) / size}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {ICONS[name].map((shape, part) => (
+          <Part key={part} shape={shape} />
+        ))}
+      </G>
+    </Svg>
+  )
 }
 
 export type Box = { x: number; y: number; width: number; height: number }
@@ -226,8 +250,11 @@ const Field = memo(function Field({
   const { marks, links } = useMemo(() => {
     const near = (x: number, y: number) =>
       Math.min(Infinity, ...avoid.map((box) => distance(x, y, box)))
+    const kept = field.marks.map(
+      (mark) => !avoid.some((box) => overlaps(mark, box)),
+    )
     const marks = field.marks
-      .filter((mark) => !avoid.some((box) => overlaps(mark, box)))
+      .filter((_, index) => kept[index])
       .map((mark) => ({
         ...mark,
         o:
@@ -236,13 +263,26 @@ const Field = memo(function Field({
             Math.min(1, near(mark.x + mark.s / 2, mark.y + mark.s / 2) / FADE),
       }))
     const links = field.links
-      .filter(([x1, y1, x2, y2]) =>
+      .flatMap(([a, b]) => {
+        const p = field.marks[a]
+        const q = field.marks[b]
+        if (!p || !q || !kept[a] || !kept[b]) return []
+        return [
+          {
+            x1: p.x + p.s / 2,
+            y1: p.y + p.s / 2,
+            x2: q.x + q.s / 2,
+            y2: q.y + q.s / 2,
+          },
+        ]
+      })
+      .filter(({ x1, y1, x2, y2 }) =>
         [0, 0.25, 0.5, 0.75, 1].every(
           (t) => near(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t) > GAP,
         ),
       )
       .map(
-        ([x1, y1, x2, y2]) =>
+        ({ x1, y1, x2, y2 }) =>
           `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`,
       )
     return { marks, links }
