@@ -257,13 +257,15 @@ controller`). The send button is filled only once there is text.
        dot, and a collapsible result.
      - Paid calls show the cost in lime.
      - A stop button while the agent works.
-2. **Sign-in sheet**, the web sign-in card as a bottom sheet.
+2. **Sign-in sheet**, the web sign-in card as the platform's own bottom sheet
+   (an Expo Router `formSheet` route that fits its content).
    - A hatched header with the mark.
    - "Connect your wallet".
    - Continue with Google, then **Seeker wallet** (MWA sign-in).
    - Footnote: "A wallet sign-in verifies ownership with a message. No funds
      move."
-   - Drag down, tap the scrim, or use back to close.
+   - Drag down, tap the scrim, or use back to close. Android draws no
+     grabber, so the sheet draws its own.
 3. **Connect LanaTools sheet** (milestone 4): the native consent card.
    - Signed-in identity.
    - Helius, Jupiter, Phoenix and Pay, all ticked by default.

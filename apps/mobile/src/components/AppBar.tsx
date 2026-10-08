@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BrandMark } from '../brand/BrandMark'
 import { useTheme } from '../theme/theme'
 import { fonts } from '../theme/tokens'
+import { PressableScale } from './PressableScale'
 import type { ReactNode } from 'react'
 
 /**
@@ -64,18 +65,16 @@ export function BarButton({
 }) {
   const { colors } = useTheme()
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       {...(accessibilityHint ? { accessibilityHint } : {})}
       hitSlop={6}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        {
-          borderColor: pressed ? colors.text3 : colors.line2,
-          backgroundColor: pressed ? colors.panel2 : colors.panel,
-        },
+        { borderColor: colors.line2, backgroundColor: colors.panel },
       ]}
+      pressedStyle={{ borderColor: colors.text3 }}
     >
       {leading}
       <Text
@@ -84,7 +83,7 @@ export function BarButton({
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -110,8 +109,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    height: 36,
-    paddingHorizontal: 13,
+    height: 38,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderRadius: 999,
   },

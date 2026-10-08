@@ -13,6 +13,14 @@ its decisions are in [docs/PLAN.md](docs/PLAN.md).
   themes before calling it done. Typecheck and lint are not enough.
 - **No agent-side tools.** The Flue agent connects to
   `https://mcp.lanatools.sh/mcp` and gets every tool from there.
+- **Motion follows Emil Kowalski's `animate-expo` rules.**
+  - Use the constants in `apps/mobile/src/theme/motion.ts`.
+  - Animate transform and opacity only, never layout.
+  - Press feedback is `PressableScale`: 97% scale over 120ms.
+  - Sheets are native `formSheet` routes.
+  - The keyboard is followed with `react-native-keyboard-controller` shared values.
+  - Use `.get()`/`.set()` on shared values, and `scheduleOnRN`, not `runOnJS`.
+  - Every animation honours reduced motion.
 - Run `npm run check` (format, lint, typecheck, tests) before committing.
 - Use `npx expo install` to add packages to `apps/mobile`, so versions match
   the Expo SDK. Never edit `apps/mobile/android`; it is generated.

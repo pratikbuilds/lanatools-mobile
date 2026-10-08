@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
 import { XIcon } from 'phosphor-react-native/src/icons/X'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BrandMark } from '../brand/BrandMark'
 import { GoogleMark, SolanaMark } from '../brand/marks'
+import { useDraft } from '../chat/draft'
 import { Button } from '../components/Button'
-import { Sheet } from '../components/Sheet'
+import { PressableScale } from '../components/PressableScale'
 import { Hatch } from '../components/surfaces'
 import { Body, Label, Mono, Small } from '../components/text'
 import { useSession } from '../session/session'
@@ -13,25 +16,19 @@ import { fonts, radius } from '../theme/tokens'
 import * as type from '../theme/type'
 
 /**
- * Sign in when the agent is first needed, never before. The web sign-in card
- * (lanatools/apps/web/src/routes/sign-in.tsx) as a sheet, with the wallet on
- * this phone in place of the browser wallets.
+ * Sign in when the agent is first needed, never before: the web sign-in card
+ * (lanatools/apps/web/src/routes/sign-in.tsx) as a native form sheet, with
+ * the wallet on this phone in place of the browser wallets.
  */
-export function SignInSheet({
-  open,
-  onClose,
-  waiting,
-}: {
-  open: boolean
-  onClose: () => void
-  /** A message is waiting to be sent once the user signs in. */
-  waiting: boolean
-}) {
+export default function SignIn() {
   const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
   const session = useSession()
+  const draft = useDraft()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const disabled = busy || session.unavailable !== null
+  const waiting = draft.waiting && draft.text.trim().length > 0
 
   async function run(signIn: () => Promise<void>, failure: string) {
     setMessage('')
@@ -46,25 +43,30 @@ export function SignInSheet({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} label="Connect your wallet">
+    <View
+      style={[
+        styles.sheet,
+        { backgroundColor: colors.panel, paddingBottom: insets.bottom + 16 },
+      ]}
+    >
+      {/* Android's form sheet draws no grabber; this is the drag cue. */}
+      <View style={[styles.grabber, { backgroundColor: colors.line2 }]} />
       <View style={[styles.head, { borderColor: colors.line }]}>
         <Hatch />
         <BrandMark size={18} color={colors.text} />
         <Mono size={13} weight="700">
           lanatools.sh
         </Mono>
-        <Pressable
-          onPress={onClose}
+        <PressableScale
+          onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Close"
           hitSlop={10}
-          style={({ pressed }) => [
-            styles.close,
-            { backgroundColor: pressed ? colors.panel2 : 'transparent' },
-          ]}
+          style={styles.close}
+          pressedStyle={{ backgroundColor: colors.panel2 }}
         >
           <XIcon size={18} color={colors.text2} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={styles.body}>
@@ -102,7 +104,7 @@ export function SignInSheet({
           <View style={[styles.hair, { backgroundColor: colors.line }]} />
         </View>
 
-        <Pressable
+        <PressableScale
           disabled={disabled}
           onPress={() =>
             void run(
@@ -114,14 +116,15 @@ export function SignInSheet({
           accessibilityLabel="Seeker wallet"
           accessibilityHint="Signs in with the wallet on this phone"
           accessibilityState={{ disabled }}
-          style={({ pressed }) => [
+          style={[
             styles.wallet,
             {
               borderColor: colors.line,
-              backgroundColor: pressed ? colors.bg : colors.panel,
+              backgroundColor: colors.panel,
               opacity: disabled ? 0.5 : 1,
             },
           ]}
+          pressedStyle={{ borderColor: colors.line2 }}
         >
           <View style={[styles.walletTile, { backgroundColor: colors.text }]}>
             <SolanaMark size={15} color={colors.panel} />
@@ -133,7 +136,7 @@ export function SignInSheet({
             <Small>The wallet on this phone</Small>
           </View>
           <Text style={[type.button, { color: colors.text3 }]}>→</Text>
-        </Pressable>
+        </PressableScale>
 
         <Small style={styles.footnote}>
           A wallet sign-in verifies ownership with a message. No funds move.
@@ -144,17 +147,24 @@ export function SignInSheet({
           </Small>
         )}
       </View>
-    </Sheet>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  sheet: { paddingTop: 10 },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    marginBottom: 10,
+    borderRadius: 2,
+  },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     height: 46,
-    marginTop: 6,
     paddingLeft: 20,
     paddingRight: 8,
     borderTopWidth: 1,

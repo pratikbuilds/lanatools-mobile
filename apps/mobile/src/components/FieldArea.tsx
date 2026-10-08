@@ -7,9 +7,10 @@ import {
   useState,
 } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { SideField } from '../brand/SideField'
 import type { Box } from '../brand/SideField'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native'
 
 type Report = (key: string, box: Box | null) => void
@@ -49,15 +50,23 @@ export function FieldArea({
   children,
   scroll = false,
   style,
+  fieldStyle,
 }: {
   children: ReactNode
   scroll?: boolean
   style?: StyleProp<ViewStyle>
+  /** An animated style for the pattern layer, such as a fade. */
+  fieldStyle?: ComponentProps<typeof Animated.View>['style']
 }) {
   const { avoid, report } = useBoxes()
   const body = (
     <>
-      <SideField avoid={avoid} />
+      <Animated.View
+        style={[StyleSheet.absoluteFill, fieldStyle]}
+        pointerEvents="none"
+      >
+        <SideField avoid={avoid} />
+      </Animated.View>
       <ReportContext value={report}>{children}</ReportContext>
     </>
   )

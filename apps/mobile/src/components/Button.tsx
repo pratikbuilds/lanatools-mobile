@@ -1,14 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { useTheme } from '../theme/theme'
 import { radius } from '../theme/tokens'
 import * as type from '../theme/type'
+import { PressableScale } from './PressableScale'
 import type { ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 /**
  * `.d-btn`: mono, hairline-bordered, on the panel. `primary` fills with the
- * accent (blue by day, paper by night). Pressing shows what hover shows on
- * the web: a darker border, or a slightly lighter fill.
+ * accent (blue by day, paper by night). A press scales it and darkens the
+ * border, where the web darkens it on hover.
  */
 export function Button({
   label,
@@ -24,7 +25,7 @@ export function Button({
   label: string
   onPress?: () => void
   primary?: boolean
-  /** md is the dashboard's 34px control (40px touch); lg is the 48px CTA. */
+  /** md is a 44dp control; lg is the 48dp primary action. */
   size?: 'md' | 'lg'
   leading?: ReactNode
   trailing?: string
@@ -34,48 +35,35 @@ export function Button({
 }) {
   const { colors } = useTheme()
   const fg = primary ? colors.onAccent : colors.text
+  const text = [type.button, size === 'lg' && styles.lgText, { color: fg }]
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       {...(accessibilityHint ? { accessibilityHint } : {})}
-      style={({ pressed }) => [
+      style={[
         styles.base,
         size === 'lg' ? styles.lg : styles.md,
         primary
-          ? {
-              backgroundColor: colors.accent,
-              borderColor: colors.accent,
-              opacity: pressed ? 0.9 : 1,
-            }
-          : {
-              backgroundColor: pressed ? colors.bg : colors.panel,
-              borderColor: pressed ? colors.text3 : colors.line2,
-            },
+          ? { backgroundColor: colors.accent, borderColor: colors.accent }
+          : { backgroundColor: colors.panel, borderColor: colors.line2 },
         disabled && styles.disabled,
         style,
       ]}
+      pressedStyle={!primary && { borderColor: colors.text3 }}
     >
       {leading}
-      <Text
-        style={[type.button, size === 'lg' && styles.lgText, { color: fg }]}
-        maxFontSizeMultiplier={1.3}
-      >
+      <Text style={text} maxFontSizeMultiplier={1.3}>
         {label}
       </Text>
       {trailing && (
-        <View style={styles.trailing}>
-          <Text
-            style={[type.button, size === 'lg' && styles.lgText, { color: fg }]}
-            maxFontSizeMultiplier={1.3}
-          >
-            {trailing}
-          </Text>
-        </View>
+        <Text style={text} maxFontSizeMultiplier={1.3}>
+          {trailing}
+        </Text>
       )}
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -89,9 +77,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     paddingHorizontal: 14,
   },
-  md: { minHeight: 40 },
+  md: { minHeight: 44 },
   lg: { minHeight: 48 },
   lgText: { fontSize: 13.5 },
-  trailing: { marginLeft: -2 },
   disabled: { opacity: 0.5 },
 })

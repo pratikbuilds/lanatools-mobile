@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { StyleSheet, TextInput } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { ArrowUpIcon } from 'phosphor-react-native/src/icons/ArrowUp'
+import Animated from 'react-native-reanimated'
+import { PressableScale } from '../components/PressableScale'
+import { CSS_EASE_OUT, STATE_MS } from '../theme/motion'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 
 /**
- * The message field, pinned above the keyboard. Send is the one filled
- * control on the screen, and only once there is something to send.
+ * The message field. Send is the one filled control on the screen, and only
+ * once there is something to send; it fills in over 150ms, quick enough for
+ * something that happens with every message.
  */
 export function Composer({
   value,
@@ -24,17 +28,21 @@ export function Composer({
 
   const send = () => {
     if (!ready) return
+    // The commit: one haptic, in the same frame as the press.
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     onSend()
   }
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.field,
         {
           backgroundColor: colors.panel,
           borderColor: focused ? colors.text3 : colors.line2,
+          transitionProperty: 'borderColor',
+          transitionDuration: STATE_MS,
+          transitionTimingFunction: CSS_EASE_OUT,
         },
       ]}
     >
@@ -47,25 +55,23 @@ export function Composer({
         placeholderTextColor={colors.text3}
         selectionColor={colors.focus}
         cursorColor={colors.focus}
+        selectionHandleColor={colors.focus}
         multiline
         maxLength={4000}
         maxFontSizeMultiplier={1.3}
         accessibilityLabel="Message"
         style={[styles.input, { color: colors.text }]}
       />
-      <Pressable
+      <PressableScale
         onPress={send}
         disabled={!ready}
         accessibilityRole="button"
         accessibilityLabel="Send"
         accessibilityState={{ disabled: !ready }}
-        hitSlop={4}
-        style={({ pressed }) => [
+        hitSlop={6}
+        style={[
           styles.send,
-          {
-            backgroundColor: ready ? colors.accent : colors.panel2,
-            opacity: pressed ? 0.85 : 1,
-          },
+          { backgroundColor: ready ? colors.accent : colors.panel2 },
         ]}
       >
         <ArrowUpIcon
@@ -73,8 +79,8 @@ export function Composer({
           weight="bold"
           color={ready ? colors.onAccent : colors.text3}
         />
-      </Pressable>
-    </View>
+      </PressableScale>
+    </Animated.View>
   )
 }
 
@@ -106,5 +112,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    transitionProperty: ['transform', 'backgroundColor'],
+    transitionDuration: STATE_MS,
   },
 })

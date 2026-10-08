@@ -1,38 +1,46 @@
-import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { WalletIcon } from 'phosphor-react-native/src/icons/Wallet'
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller'
 import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Composer } from '../chat/Composer'
+import { useDraft } from '../chat/draft'
 import { EmptyState } from '../chat/EmptyState'
-import { SignInSheet } from '../chat/SignInSheet'
 import { AppBar, BarButton } from '../components/AppBar'
 import { useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 
 /**
  * The app opens here: a chat with the agent. Nothing asks for a wallet
- * until the user sends something, and then only in a sheet that keeps
- * their message.
+ * until the user sends something, and then only in a sheet; the message
+ * waits in the composer.
  */
 export default function Chat() {
   const { colors, name } = useTheme()
+  const insets = useSafeAreaInsets()
   const session = useSession()
-  const [draft, setDraft] = useState('')
-  const [signingIn, setSigningIn] = useState(false)
-  const [waiting, setWaiting] = useState(false)
+  const draft = useDraft()
+  const keyboard = useReanimatedKeyboardAnimation()
 
   const send = (text: string) => {
     if (session.status !== 'signedIn') {
-      setDraft(text)
-      setWaiting(true)
-      setSigningIn(true)
+      draft.setText(text)
+      draft.setWaiting(true)
+      router.push('/sign-in')
       return
     }
     // Sending to the agent arrives with the Flue backend (milestone 3).
   }
+
+  // The composer rides the keyboard's real position, frame by frame, as a
+  // transform: nothing re-lays-out while the keyboard moves.
+  const dockStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: Math.min(0, keyboard.height.get() + insets.bottom) },
+    ],
+  }))
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -46,45 +54,28 @@ export default function Chat() {
               leading={<WalletIcon size={16} color={colors.text} />}
               accessibilityHint="Sign in and connect your wallet"
               onPress={() => {
-                setWaiting(false)
-                setSigningIn(true)
+                draft.setWaiting(false)
+                router.push('/sign-in')
               }}
             />
           )
         }
       />
-      <EmptyState onPick={send} />
-      <View style={styles.composer}>
+      <EmptyState onPick={send} keyboard={keyboard} />
+      <Animated.View
+        style={[styles.dock, { paddingBottom: insets.bottom + 8 }, dockStyle]}
+      >
         <Composer
-          value={draft}
-          onChange={setDraft}
-          onSend={() => send(draft)}
+          value={draft.text}
+          onChange={draft.setText}
+          onSend={() => send(draft.text)}
         />
-      </View>
-      <KeyboardSpace />
-      <SignInSheet
-        open={signingIn}
-        waiting={waiting && draft.trim().length > 0}
-        onClose={() => setSigningIn(false)}
-      />
+      </Animated.View>
     </View>
   )
 }
 
-/**
- * Space under the composer: the keyboard's height while it is open, the
- * navigation bar's otherwise, so the composer rides the keyboard.
- */
-function KeyboardSpace() {
-  const insets = useSafeAreaInsets()
-  const { height } = useReanimatedKeyboardAnimation()
-  const style = useAnimatedStyle(() => ({
-    height: Math.max(insets.bottom + 8, -height.value + 8),
-  }))
-  return <Animated.View style={style} />
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  composer: { paddingHorizontal: 12, paddingTop: 6 },
+  dock: { paddingHorizontal: 12, paddingTop: 6 },
 })
