@@ -13,6 +13,11 @@ its decisions are in [docs/PLAN.md](docs/PLAN.md).
   themes before calling it done. Typecheck and lint are not enough.
 - **No agent-side tools.** The Flue agent connects to
   `https://mcp.lanatools.sh/mcp` and gets every tool from there.
+- **Review every screen against the eight design principles** from Expo's
+  "professional design principles" guide before you commit: contrast (one
+  focal point), hierarchy, alignment (one 16px edge), proximity, repetition
+  (LanaTools radii: 14 frame, 10 card, 9 button), balance, white space and
+  unity. Critique the emulator screenshot, revise, and look again.
 - **Motion follows Emil Kowalski's `animate-expo` rules.**
   - Use the constants in `apps/mobile/src/theme/motion.ts`.
   - Animate transform and opacity only, never layout.

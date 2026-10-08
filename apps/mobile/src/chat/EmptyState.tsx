@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lede: { marginTop: 10, textAlign: 'center', maxWidth: 300 },
-  suggestions: { paddingBottom: 12 },
+  suggestions: { paddingBottom: 10 },
   suggestionsLabel: { paddingHorizontal: 16, marginBottom: 8 },
   chips: { gap: 8, paddingHorizontal: 16 },
   chip: {

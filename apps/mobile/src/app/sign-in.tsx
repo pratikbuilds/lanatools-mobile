@@ -12,8 +12,7 @@ import { Hatch } from '../components/surfaces'
 import { Body, Label, Mono, Small } from '../components/text'
 import { useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
-import { fonts, radius } from '../theme/tokens'
-import * as type from '../theme/type'
+import { fonts } from '../theme/tokens'
 
 /**
  * Sign in when the agent is first needed, never before: the web sign-in card
@@ -84,6 +83,30 @@ export default function SignIn() {
             : 'Your agent works from your LanaTools account and wallet. Use the account you have on lanatools.sh, or create one.'}
         </Body>
 
+        {/* One focal point: the wallet on this phone is the quickest way
+            in on a Seeker, so it is the only filled control. */}
+        <Button
+          primary
+          size="lg"
+          label="Continue with Seeker wallet"
+          leading={<SolanaMark size={15} color={colors.onAccent} />}
+          accessibilityHint="Signs in with the wallet on this phone"
+          disabled={disabled}
+          onPress={() =>
+            void run(
+              session.signInWithWallet,
+              'Wallet sign-in failed. Check your wallet and try again.',
+            )
+          }
+          style={styles.primary}
+        />
+
+        <View style={styles.divider}>
+          <View style={[styles.hair, { backgroundColor: colors.line }]} />
+          <Label>Or</Label>
+          <View style={[styles.hair, { backgroundColor: colors.line }]} />
+        </View>
+
         <Button
           size="lg"
           label="Continue with Google"
@@ -95,48 +118,7 @@ export default function SignIn() {
               'Google sign-in failed. Try again.',
             )
           }
-          style={styles.google}
         />
-
-        <View style={styles.divider}>
-          <View style={[styles.hair, { backgroundColor: colors.line }]} />
-          <Label>Or use a Solana wallet</Label>
-          <View style={[styles.hair, { backgroundColor: colors.line }]} />
-        </View>
-
-        <PressableScale
-          disabled={disabled}
-          onPress={() =>
-            void run(
-              session.signInWithWallet,
-              'Wallet sign-in failed. Check your wallet and try again.',
-            )
-          }
-          accessibilityRole="button"
-          accessibilityLabel="Seeker wallet"
-          accessibilityHint="Signs in with the wallet on this phone"
-          accessibilityState={{ disabled }}
-          style={[
-            styles.wallet,
-            {
-              borderColor: colors.line,
-              backgroundColor: colors.panel,
-              opacity: disabled ? 0.5 : 1,
-            },
-          ]}
-          pressedStyle={{ borderColor: colors.line2 }}
-        >
-          <View style={[styles.walletTile, { backgroundColor: colors.text }]}>
-            <SolanaMark size={15} color={colors.panel} />
-          </View>
-          <View style={styles.walletText}>
-            <Mono size={13.5} weight="600">
-              Seeker wallet
-            </Mono>
-            <Small>The wallet on this phone</Small>
-          </View>
-          <Text style={[type.button, { color: colors.text3 }]}>→</Text>
-        </PressableScale>
 
         <Small style={styles.footnote}>
           A wallet sign-in verifies ownership with a message. No funds move.
@@ -188,31 +170,14 @@ const styles = StyleSheet.create({
     letterSpacing: 22 * -0.04,
   },
   lede: { marginTop: 8 },
-  google: { marginTop: 22 },
+  primary: { marginTop: 22 },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginVertical: 18,
+    marginVertical: 14,
   },
   hair: { flex: 1, height: 1 },
-  wallet: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 60,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderRadius: radius.card,
-  },
-  walletTile: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.field,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletText: { flex: 1, gap: 2 },
   footnote: { marginTop: 16 },
   error: { marginTop: 8 },
 })

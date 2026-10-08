@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 7,
     borderWidth: 1,
-    borderRadius: radius.frame + 4,
+    borderRadius: radius.frame,
   },
   input: {
     flex: 1,
@@ -109,7 +109,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     marginBottom: 6,
-    borderRadius: 20,
+    // Concentric with the field: its 14 radius less the 7 inset, which is
+    // also the dashboard's button radius.
+    borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
     transitionProperty: ['transform', 'backgroundColor'],

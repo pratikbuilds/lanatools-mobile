@@ -77,5 +77,5 @@ export default function Chat() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  dock: { paddingHorizontal: 12, paddingTop: 6 },
+  dock: { paddingHorizontal: 16, paddingTop: 10 },
 })
