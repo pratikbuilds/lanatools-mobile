@@ -1,0 +1,91 @@
+{
+  "expo": {
+    "name": "LanaTools",
+    "slug": "lanatools-mobile",
+    "version": "0.1.0",
+    "scheme": "lanatools",
+    "orientation": "portrait",
+    "icon": "./assets/brand/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#f3efe6",
+    "platforms": ["android"],
+    "android": {
+      "package": "sh.lanatools.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b2fb2",
+        "foregroundImage": "./assets/brand/adaptive-foreground.png",
+        "monochromeImage": "./assets/brand/adaptive-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-system-ui",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash-light.png",
+          "imageWidth": 72,
+          "backgroundColor": "#f3efe6",
+          "dark": {
+            "image": "./assets/brand/splash-dark.png",
+            "backgroundColor": "#08090c"
+          }
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "PaperMono",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/PaperMono-Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/PaperMono-Medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/PaperMono-SemiBold.ttf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "./assets/fonts/PaperMono-Bold.ttf",
+                    "weight": 700
+                  }
+                ]
+              },
+              {
+                "fontFamily": "InterTight",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/InterTight_400Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/InterTight_500Medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/InterTight_600SemiBold.ttf",
+                    "weight": 600
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
