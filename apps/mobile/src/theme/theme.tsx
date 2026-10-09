@@ -16,6 +16,8 @@ type Theme = {
   colors: Palette
   preference: Preference
   setPreference: (preference: Preference) => void
+  /** False until the remembered choice is read, so nothing flashes. */
+  ready: boolean
 }
 
 const ThemeContext = createContext<Theme | null>(null)
@@ -27,6 +29,7 @@ const ThemeContext = createContext<Theme | null>(null)
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme()
   const [picked, setPicked] = useState<ThemeName | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     SecureStore.getItemAsync(KEY)
@@ -35,6 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       })
       // Not remembered: the system theme still applies.
       .catch(() => {})
+      .finally(() => setReady(true))
   }, [])
 
   const name: ThemeName = picked ?? (system === 'dark' ? 'dark' : 'light')
@@ -49,6 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       name,
       colors: palettes[name],
       preference: picked ?? 'system',
+      ready,
       setPreference: (preference) => {
         setPicked(preference === 'system' ? null : preference)
         const write =
@@ -58,7 +63,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         write.catch(() => {})
       },
     }),
-    [name, picked],
+    [name, picked, ready],
   )
 
   return <ThemeContext value={value}>{children}</ThemeContext>
