@@ -81,7 +81,8 @@ function Chat() {
                 onPress={store.newChat}
               />
             )}
-            {session.status !== 'signedIn' && (
+            {(session.status === 'signedOut' ||
+              session.status === 'walletError') && (
               <BarButton
                 label="Connect"
                 leading={<WalletIcon size={16} color={colors.text} />}

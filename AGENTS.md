@@ -1,6 +1,7 @@
 # Agent instructions
 
-LanaTools Mobile: an Android app for the Solana Seeker. Sign in with Privy, then
+LanaTools Mobile: an Android app for Solana. Sign in with Privy (Google or any
+Mobile Wallet Adapter wallet, never a specific device's wallet), then
 chat with an agent that uses the production LanaTools MCP tools. The plan and
 its decisions are in [docs/PLAN.md](docs/PLAN.md).
 

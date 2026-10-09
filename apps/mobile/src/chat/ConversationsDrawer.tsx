@@ -19,7 +19,7 @@ import { useConversations } from '../agent/store'
 import { useDrawer } from '../components/Drawer'
 import { PressableScale } from '../components/PressableScale'
 import { Label, Mono, Small } from '../components/text'
-import { shortAddress, useSession } from '../session/session'
+import { methodLabel, shortAddress, useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import { useDraft } from './draft'
@@ -189,7 +189,7 @@ export function ConversationsDrawer() {
           { borderTopColor: colors.line, paddingBottom: insets.bottom + 10 },
         ]}
       >
-        {session.address ? (
+        {session.address && session.method ? (
           <View style={styles.account}>
             <View style={[styles.avatar, { backgroundColor: colors.text }]}>
               <SolanaMark size={13} color={colors.panel} />
@@ -198,9 +198,7 @@ export function ConversationsDrawer() {
               <Mono size={13} weight="600">
                 {shortAddress(session.address)}
               </Mono>
-              <Small>
-                {session.method === 'wallet' ? 'Seeker wallet' : 'Google'}
-              </Small>
+              <Small>{methodLabel(session.method)}</Small>
             </View>
           </View>
         ) : (
