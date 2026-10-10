@@ -15,7 +15,12 @@ import { Row, Section, Ticks, Value } from '../components/Ledger'
 import { PressableScale } from '../components/PressableScale'
 import { StatusDot } from '../components/StatusDot'
 import { Mono } from '../components/text'
-import { MOCK_AGENT, shortAddress, useSession } from '../session/session'
+import {
+  MOCK_AGENT,
+  methodLabel,
+  shortAddress,
+  useSession,
+} from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { Preference } from '../theme/theme'
@@ -136,15 +141,13 @@ export default function Settings() {
         ]}
       >
         <Section label="Account">
-          {session.address ? (
+          {session.address && session.method ? (
             <>
               <Row name="Wallet" detail="Your LanaTools embedded wallet" first>
                 <CopyAddress address={session.address} />
               </Row>
               <Row name="Signed in with">
-                <Value>
-                  {session.method === 'wallet' ? 'Seeker wallet' : 'Google'}
-                </Value>
+                <Value>{methodLabel(session.method)}</Value>
               </Row>
             </>
           ) : (
@@ -222,7 +225,7 @@ export default function Settings() {
         {signedIn && (
           <PressableScale
             onPress={() => {
-              session.signOut()
+              void session.signOut()
               store.newChat()
               router.back()
             }}

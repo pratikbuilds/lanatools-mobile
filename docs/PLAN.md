@@ -1,6 +1,7 @@
 # LanaTools Mobile: plan
 
-An Android-only app for the Solana Seeker. The user signs in with Privy (the
+An Android-only Solana app that works with any wallet app on the phone over
+Mobile Wallet Adapter. The user signs in with Privy (the
 same Privy app as LanaTools), gets their LanaTools embedded wallet, and chats
 with an agent that uses the tools of the **production LanaTools MCP server**
 (`https://mcp.lanatools.sh/mcp`). The agent runs on Flue and defines no tools
@@ -20,10 +21,10 @@ Status: main decisions settled on 2026-10-08 (see "Decisions"). Nothing is built
 ## Architecture
 
 ```
-┌──────────── Seeker (Android) ─────────────┐  in-app consent:      ┌─ LanaTools prod ─────────────┐
+┌──────────────── Android ──────────────────┐  in-app consent:      ┌─ LanaTools prod ─────────────┐
 │ apps/mobile  (Expo SDK 57, RN 0.86)       │  Privy token + PKCE   │ mcp.lanatools.sh             │
 │  Privy Expo SDK ─ embedded Solana wallet  ├──────────────────────►│  /first-party/authorize (new)│
-│  MWA (Seed Vault) ─ wallet sign-in only   │  ◄── { code } ──────  │  /token (+ refresh)          │
+│  MWA (any wallet app) ─ sign-in only      │  ◄── { code } ──────  │  /token (+ refresh)          │
 │  MCP tokens in SecureStore (refresh stays │                       │  /mcp  (all the tools)       │
 │    on the phone)                          │                       └──────────▲───────────────────┘
 │  @flue/sdk client ─ chat stream           │                                  │
@@ -261,7 +262,9 @@ controller`). The send button is filled only once there is text.
    (an Expo Router `formSheet` route that fits its content).
    - A hatched header with the mark.
    - "Connect your wallet".
-   - Continue with Google, then **Seeker wallet** (MWA sign-in).
+   - Continue with Google, then one **Solana wallet** row (MWA sign-in) with
+     the web card's Phantom, Solflare and Backpack logos. Android picks the
+     wallet app; the copy never names a device.
    - Footnote: "A wallet sign-in verifies ownership with a message. No funds
      move."
    - Drag down, tap the scrim, or use back to close. Android draws no
@@ -387,7 +390,7 @@ Each milestone ends with a check on a real device or emulator, and a commit.
 | 4   | **LanaTools link.** One-time DCR registration on production, native consent card, PKCE and code exchange in the app, SecureStore tokens and refresh, `X-LanaTools-Token` handoff, D1 token table, `useMcpConnection` to production, link UI and revoked state | "What's in my wallet?" runs `get_wallet_holdings` through LanaTools; revoking in the dashboard shows "Reconnect" in the app                         |
 | 5   | **Full chat UI.** Every Flue part type: markdown text, folded reasoning, tool cards, data parts. Plus stop, errors, conversation list, SSE or long-poll                                                                                                       | Tool calls, refusals and paid calls display correctly; the app survives losing the network mid-reply                                                |
 | 6   | **Transaction approval.** Detect the `jupiter_build_swap` output, decode in the app, approval sheet, Privy `signAndSendTransaction` (or Jupiter execute for JupiterZ), report back to the agent, no automatic retry of a send that may already have gone out  | A swap of about $1 on mainnet signed from chat; declining stops the agent cleanly                                                                   |
-| 7   | **Release.** Release keystore, SHA-256 registered with Privy, EAS build, agent deployment, Solana dApp Store listing                                                                                                                                          | Signed APK installs on a Seeker and signs in against production                                                                                     |
+| 7   | **Release.** Release keystore, SHA-256 registered with Privy, EAS build, agent deployment, Solana dApp Store listing                                                                                                                                          | Signed APK installs on a phone and signs in against production                                                                                      |
 
 Later: set up agent payments from the phone instead of the web dashboard. This
 depends on whether Privy's Expo SDK supports `addSigners`. Until then, users
@@ -399,7 +402,7 @@ Settled on 2026-10-08:
 
 1. **Tool access:** the production LanaTools MCP server, `mcp.lanatools.sh/mcp`. The agent defines no tools; every tool comes from the server. Consent happens in the app with the existing Privy session, through a new first-party endpoint on `mcp.lanatools.sh` (milestone 4a). The app shares the access token with the agent.
 2. **Agent hosting:** Cloudflare Workers. Flue stores each conversation in a Durable Object; the shared MCP access tokens go in D1, encrypted and short-lived.
-3. **Sign-in:** Google and the Seeker wallet (MWA). No email sign-in.
+3. **Sign-in:** Google and any Solana wallet app over MWA. No email sign-in.
 4. **App IDs:** Android package `sh.lanatools.mobile`, URL scheme `lanatools`, agent at `agent.lanatools.sh` (domain to be confirmed).
 
 Still open:

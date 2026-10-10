@@ -82,7 +82,9 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser",
+      "react-native-quick-crypto"
     ],
     "experiments": {
       "typedRoutes": true
