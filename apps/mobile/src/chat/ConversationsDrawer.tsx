@@ -23,7 +23,7 @@ import { shortAddress, useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import { useDraft } from './draft'
-import type { Conversation } from '../agent/types'
+import type { ConversationSummary } from '../agent/context'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -55,7 +55,7 @@ export function ConversationsDrawer() {
     const found = store.conversations
       .filter((c) => !q || c.title.toLowerCase().includes(q))
       .sort((a, b) => b.updatedAt - a.updatedAt)
-    const out = new Map<string, Conversation[]>()
+    const out = new Map<string, ConversationSummary[]>()
     for (const c of found) {
       const group = groupOf(c.updatedAt, now)
       out.set(group, [...(out.get(group) ?? []), c])

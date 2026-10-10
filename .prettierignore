@@ -4,3 +4,6 @@ node_modules/
 **/ios/
 **/.expo/
 **/dist/
+**/expo-env.d.ts
+**/.flue-vite/
+**/.wrangler/

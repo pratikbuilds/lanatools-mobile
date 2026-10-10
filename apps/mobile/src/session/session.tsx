@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 // Who is signed in. Privy plugs in here (docs/PLAN.md, milestone 2). Until
 // then sign-in is unavailable and says so, as the web sign-in page does
-// without an app ID, unless the mock agent is on, in which case it signs
+// without an app ID, unless the mock wallet is on, in which case it signs
 // in to a mock wallet so the whole flow can be used.
 
 export type Session = {
@@ -23,17 +23,18 @@ const SessionContext = createContext<Session | null>(null)
 
 const PRIVY_APP_ID = process.env.EXPO_PUBLIC_PRIVY_APP_ID
 export const MOCK_AGENT = process.env.EXPO_PUBLIC_MOCK_AGENT === '1'
+const MOCK_WALLET = process.env.EXPO_PUBLIC_MOCK_WALLET === '1'
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [method, setMethod] = useState<Session['method']>(null)
 
   const value = useMemo<Session>(() => {
     const unavailable =
-      PRIVY_APP_ID || MOCK_AGENT
+      PRIVY_APP_ID || MOCK_WALLET
         ? null
         : 'Sign-in is unavailable in this build.'
     const signIn = (as: 'google' | 'wallet') => async () => {
-      if (!MOCK_AGENT)
+      if (!MOCK_WALLET)
         throw new Error(unavailable ?? 'Sign-in is not connected yet.')
       await new Promise((resolve) => setTimeout(resolve, 700))
       setMethod(as)

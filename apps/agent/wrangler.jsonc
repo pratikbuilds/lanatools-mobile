@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lanatools-agent",
+  "compatibility_date": "2026-06-01",
+  // Flue's runtime uses Node APIs; this also fills process.env from vars
+  // and secrets.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "traces": { "enabled": true } },
+  // Flue generates one Durable Object class per agent (Lana ->
+  // FlueLanaAgent). Migrations are append-only: add a tag, never edit one.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FlueLanaAgent"] }],
+}

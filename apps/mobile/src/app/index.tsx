@@ -96,7 +96,7 @@ function Chat() {
         }
       />
       {active ? (
-        <MessageList conversationId={active.id} messages={active.messages} />
+        <MessageList key={active.id} messages={active.messages} />
       ) : (
         <EmptyState onPick={send} keyboard={keyboard} />
       )}
