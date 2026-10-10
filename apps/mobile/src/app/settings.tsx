@@ -15,7 +15,12 @@ import { Row, Section, Ticks, Value } from '../components/Ledger'
 import { PressableScale } from '../components/PressableScale'
 import { StatusDot } from '../components/StatusDot'
 import { Mono } from '../components/text'
-import { MOCK_AGENT, shortAddress, useSession } from '../session/session'
+import {
+  MOCK_AGENT,
+  methodLabel,
+  shortAddress,
+  useSession,
+} from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { Preference } from '../theme/theme'
@@ -136,15 +141,13 @@ export default function Settings() {
         ]}
       >
         <Section label="Account">
-          {session.address ? (
+          {session.address && session.method ? (
             <>
               <Row name="Wallet" detail="Your LanaTools embedded wallet" first>
                 <CopyAddress address={session.address} />
               </Row>
               <Row name="Signed in with">
-                <Value>
-                  {session.method === 'wallet' ? 'Seeker wallet' : 'Google'}
-                </Value>
+                <Value>{methodLabel(session.method)}</Value>
               </Row>
             </>
           ) : (
@@ -217,12 +220,24 @@ export default function Settings() {
           <Row name="Version">
             <Value>0.1.0</Value>
           </Row>
+          <PressableScale
+            scale={false}
+            onPress={() => router.push('/onboarding')}
+            accessibilityRole="button"
+            style={[styles.link, { borderTopColor: colors.line }]}
+            pressedStyle={{ backgroundColor: colors.panel2 }}
+          >
+            <Text style={[styles.linkText, { color: colors.accent }]}>
+              Show the introduction
+            </Text>
+            <Text style={[styles.linkText, { color: colors.accent }]}>→</Text>
+          </PressableScale>
         </Section>
 
         {signedIn && (
           <PressableScale
             onPress={() => {
-              session.signOut()
+              void session.signOut()
               store.newChat()
               router.back()
             }}

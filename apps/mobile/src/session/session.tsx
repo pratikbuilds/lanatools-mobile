@@ -1,41 +1,41 @@
-import { createContext, use, useMemo, useState } from 'react'
+import { use, useMemo, useState } from 'react'
 import { MOCK_ADDRESS } from '../agent/mock'
+import { MOCK_WALLET, PRIVY_APP_ID, PRIVY_CLIENT_ID } from './config'
+import { SessionContext } from './context'
+import { PrivySession } from './privy'
+import type { Session } from './context'
+import type { SignInMethod } from './wallet'
 import type { ReactNode } from 'react'
 
-// Who is signed in. Privy plugs in here (docs/PLAN.md, milestone 2). Until
-// then sign-in is unavailable and says so, as the web sign-in page does
-// without an app ID, unless the mock wallet is on, in which case it signs
-// in to a mock wallet so the whole flow can be used.
+export type { Session } from './context'
+export { MOCK_AGENT } from './config'
+export { methodLabel } from './wallet'
 
-export type Session = {
-  status: 'signedOut' | 'signedIn'
-  /** Why sign-in cannot start in this build, if it cannot. */
-  unavailable: string | null
-  /** The embedded wallet's address once signed in. */
-  address: string | null
-  method: 'google' | 'wallet' | null
-  signInWithGoogle: () => Promise<void>
-  signInWithWallet: () => Promise<void>
-  signOut: () => void
+/**
+ * Privy when the build has its app and client IDs. Without them, sign-in
+ * is unavailable and says so, as the web sign-in page does without an app
+ * ID, unless the mock wallet is on: then it signs in to a mock wallet so the
+ * whole flow can be used.
+ */
+export function SessionProvider({ children }: { children: ReactNode }) {
+  if (PRIVY_APP_ID && PRIVY_CLIENT_ID)
+    return (
+      <PrivySession appId={PRIVY_APP_ID} clientId={PRIVY_CLIENT_ID}>
+        {children}
+      </PrivySession>
+    )
+  return <LocalSession>{children}</LocalSession>
 }
 
-const SessionContext = createContext<Session | null>(null)
-
-const PRIVY_APP_ID = process.env.EXPO_PUBLIC_PRIVY_APP_ID
-export const MOCK_AGENT = process.env.EXPO_PUBLIC_MOCK_AGENT === '1'
-const MOCK_WALLET = process.env.EXPO_PUBLIC_MOCK_WALLET === '1'
-
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [method, setMethod] = useState<Session['method']>(null)
+function LocalSession({ children }: { children: ReactNode }) {
+  const [method, setMethod] = useState<SignInMethod | null>(null)
 
   const value = useMemo<Session>(() => {
-    const unavailable =
-      PRIVY_APP_ID || MOCK_WALLET
-        ? null
-        : 'Sign-in is unavailable in this build.'
-    const signIn = (as: 'google' | 'wallet') => async () => {
-      if (!MOCK_WALLET)
-        throw new Error(unavailable ?? 'Sign-in is not connected yet.')
+    const unavailable = MOCK_WALLET
+      ? null
+      : 'Sign-in is unavailable in this build.'
+    const signIn = (as: SignInMethod) => async () => {
+      if (!MOCK_WALLET) throw new Error(unavailable ?? 'Sign-in is off.')
       await new Promise((resolve) => setTimeout(resolve, 700))
       setMethod(as)
     }
@@ -44,9 +44,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       unavailable,
       address: method ? MOCK_ADDRESS : null,
       method,
+      walletError: null,
       signInWithGoogle: signIn('google'),
       signInWithWallet: signIn('wallet'),
-      signOut: () => setMethod(null),
+      retryWallet: () => undefined,
+      signOut: async () => setMethod(null),
+      getAccessToken: async () => null,
     }
   }, [method])
 

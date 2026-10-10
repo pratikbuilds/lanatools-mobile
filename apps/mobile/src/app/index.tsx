@@ -1,6 +1,5 @@
 import { StyleSheet, View } from 'react-native'
-import { router } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
+import { Redirect, router } from 'expo-router'
 import { ListIcon } from 'phosphor-react-native/src/icons/List'
 import { NotePencilIcon } from 'phosphor-react-native/src/icons/NotePencil'
 import { WalletIcon } from 'phosphor-react-native/src/icons/Wallet'
@@ -15,10 +14,13 @@ import { EmptyState } from '../chat/EmptyState'
 import { MessageList } from '../chat/MessageList'
 import { AppBar, BarButton, BarIcon, BarTitle } from '../components/AppBar'
 import { DrawerLayout, useDrawer } from '../components/Drawer'
+import { useOnboarding } from '../onboarding/seen'
 import { useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 
 export default function ChatRoute() {
+  const onboarding = useOnboarding()
+  if (!onboarding.seen) return <Redirect href="/onboarding" />
   return (
     <DrawerLayout drawer={<ConversationsDrawer />}>
       <Chat />
@@ -32,7 +34,7 @@ export default function ChatRoute() {
  * waits in the composer and sends once they are signed in.
  */
 function Chat() {
-  const { colors, name } = useTheme()
+  const { colors } = useTheme()
   const insets = useSafeAreaInsets()
   const session = useSession()
   const drawer = useDrawer()
@@ -62,7 +64,6 @@ function Chat() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
       <AppBar
         leading={
           <BarIcon
@@ -81,7 +82,8 @@ function Chat() {
                 onPress={store.newChat}
               />
             )}
-            {session.status !== 'signedIn' && (
+            {(session.status === 'signedOut' ||
+              session.status === 'walletError') && (
               <BarButton
                 label="Connect"
                 leading={<WalletIcon size={16} color={colors.text} />}
