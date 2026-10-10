@@ -2,22 +2,27 @@ import { useEffect } from 'react'
 import { StyleSheet } from 'react-native'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
+import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { useReducedMotion } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ConversationsProvider } from '../agent/store'
 import { DraftProvider } from '../chat/draft'
+import { OnboardingProvider, useOnboarding } from '../onboarding/seen'
 import { SessionProvider } from '../session/session'
 import { ThemeProvider, useTheme } from '../theme/theme'
 import { radius } from '../theme/tokens'
 
 // Fonts are embedded at build time, so the first frame is already in the
-// brand's type; the splash only covers React starting up.
+// brand's type; the splash covers React starting up and reading the
+// remembered theme and introduction, so neither flashes.
 void SplashScreen.preventAutoHideAsync()
 
 function Screens() {
-  const { colors } = useTheme()
+  const { colors, name, ready: themeReady } = useTheme()
+  const onboarding = useOnboarding()
+  const ready = themeReady && onboarding.ready
   const reduced = useReducedMotion()
   const sheet = {
     presentation: 'formSheet' as const,
@@ -26,25 +31,34 @@ function Screens() {
     contentStyle: { backgroundColor: colors.panel },
   }
   useEffect(() => {
-    SplashScreen.hide()
-  }, [])
+    if (ready) SplashScreen.hide()
+  }, [ready])
+  if (!ready) return null
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        // The platform's own transitions; a fade when motion is reduced.
-        animation: reduced ? 'fade' : 'default',
-        contentStyle: { backgroundColor: colors.bg },
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="settings" />
-      {/* Short interruptions, so the platform's own bottom sheet: it drags,
+    <>
+      <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          // The platform's own transitions; a fade when motion is reduced.
+          animation: reduced ? 'fade' : 'default',
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        {/* The chat arrives from the introduction with a fade. */}
+        <Stack.Screen name="index" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }}
+        />
+        <Stack.Screen name="settings" />
+        {/* Short interruptions, so the platform's own bottom sheet: it drags,
           dims, and closes on back for free. */}
-      <Stack.Screen name="sign-in" options={sheet} />
-      <Stack.Screen name="tools" options={sheet} />
-      <Stack.Screen name="transaction" options={sheet} />
-    </Stack>
+        <Stack.Screen name="sign-in" options={sheet} />
+        <Stack.Screen name="tools" options={sheet} />
+        <Stack.Screen name="transaction" options={sheet} />
+      </Stack>
+    </>
   )
 }
 
@@ -54,13 +68,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <KeyboardProvider>
           <ThemeProvider>
-            <SessionProvider>
-              <ConversationsProvider>
-                <DraftProvider>
-                  <Screens />
-                </DraftProvider>
-              </ConversationsProvider>
-            </SessionProvider>
+            <OnboardingProvider>
+              <SessionProvider>
+                <ConversationsProvider>
+                  <DraftProvider>
+                    <Screens />
+                  </DraftProvider>
+                </ConversationsProvider>
+              </SessionProvider>
+            </OnboardingProvider>
           </ThemeProvider>
         </KeyboardProvider>
       </SafeAreaProvider>

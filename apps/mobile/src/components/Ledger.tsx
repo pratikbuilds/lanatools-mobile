@@ -93,7 +93,7 @@ export function Ticks({ spent, limit }: { spent: number; limit: number }) {
   const share = limit > 0 ? spent / limit : 0
   const filled = Math.min(24, Math.ceil(share * 24))
   const tone =
-    share >= 1 ? colors.bad : share >= 0.8 ? colors.warn : colors.accent
+    share >= 1 ? colors.bad : share >= 0.8 ? colors.warn : colors.tick
   return (
     <View
       style={styles.ticks}

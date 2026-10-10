@@ -24,6 +24,8 @@ export type Palette = {
   text3: string
   accent: string
   onAccent: string
+  /** Spending-limit ticks: the accent by day, a soft blue by night. */
+  tick: string
   live: string
   liveGlow: string
   warn: string
@@ -50,6 +52,7 @@ export const palettes: Record<ThemeName, Palette> = {
     text3: '#5f668c',
     accent: '#0b2fb2',
     onAccent: '#f3efe6',
+    tick: '#0b2fb2',
     live: '#1d8f55',
     liveGlow: 'rgba(29, 143, 85, 0.18)',
     warn: '#9a5b00',
@@ -71,6 +74,7 @@ export const palettes: Record<ThemeName, Palette> = {
     text3: '#8a90a3',
     accent: '#f3efe6',
     onAccent: '#0a1f6e',
+    tick: '#b5c1f0',
     live: '#d9ff4a',
     liveGlow: 'rgba(217, 255, 74, 0.25)',
     warn: '#f2c25c',

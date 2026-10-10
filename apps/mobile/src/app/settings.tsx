@@ -220,6 +220,18 @@ export default function Settings() {
           <Row name="Version">
             <Value>0.1.0</Value>
           </Row>
+          <PressableScale
+            scale={false}
+            onPress={() => router.push('/onboarding')}
+            accessibilityRole="button"
+            style={[styles.link, { borderTopColor: colors.line }]}
+            pressedStyle={{ backgroundColor: colors.panel2 }}
+          >
+            <Text style={[styles.linkText, { color: colors.accent }]}>
+              Show the introduction
+            </Text>
+            <Text style={[styles.linkText, { color: colors.accent }]}>→</Text>
+          </PressableScale>
         </Section>
 
         {signedIn && (
