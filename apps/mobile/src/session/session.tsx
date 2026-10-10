@@ -1,6 +1,6 @@
 import { use, useMemo, useState } from 'react'
 import { MOCK_ADDRESS } from '../agent/mock'
-import { MOCK_AGENT, PRIVY_APP_ID, PRIVY_CLIENT_ID } from './config'
+import { MOCK_WALLET, PRIVY_APP_ID, PRIVY_CLIENT_ID } from './config'
 import { SessionContext } from './context'
 import { PrivySession } from './privy'
 import type { Session } from './context'
@@ -14,7 +14,7 @@ export { methodLabel } from './wallet'
 /**
  * Privy when the build has its app and client IDs. Without them, sign-in
  * is unavailable and says so, as the web sign-in page does without an app
- * ID, unless the mock agent is on: then it signs in to a mock wallet so the
+ * ID, unless the mock wallet is on: then it signs in to a mock wallet so the
  * whole flow can be used.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -31,11 +31,11 @@ function LocalSession({ children }: { children: ReactNode }) {
   const [method, setMethod] = useState<SignInMethod | null>(null)
 
   const value = useMemo<Session>(() => {
-    const unavailable = MOCK_AGENT
+    const unavailable = MOCK_WALLET
       ? null
       : 'Sign-in is unavailable in this build.'
     const signIn = (as: SignInMethod) => async () => {
-      if (!MOCK_AGENT) throw new Error(unavailable ?? 'Sign-in is off.')
+      if (!MOCK_WALLET) throw new Error(unavailable ?? 'Sign-in is off.')
       await new Promise((resolve) => setTimeout(resolve, 700))
       setMethod(as)
     }

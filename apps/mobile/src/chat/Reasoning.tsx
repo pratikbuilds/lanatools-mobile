@@ -16,7 +16,7 @@ const OPEN_IN = FadeIn.duration(180).easing(EASE_OUT)
 export function Reasoning({ part }: { part: ReasoningPart }) {
   const { colors } = useTheme()
   const [open, setOpen] = useState(false)
-  const thinking = part.durationMs === undefined
+  const thinking = part.state === 'streaming'
   return (
     <View style={styles.wrap}>
       <PressableScale
@@ -32,7 +32,9 @@ export function Reasoning({ part }: { part: ReasoningPart }) {
         <Label>
           {thinking
             ? 'Thinking…'
-            : `Thought for ${((part.durationMs ?? 0) / 1000).toFixed(1)}s`}
+            : part.durationMs === undefined
+              ? 'Thought'
+              : `Thought for ${(part.durationMs / 1000).toFixed(1)}s`}
         </Label>
         {!thinking && (
           <Animated.View

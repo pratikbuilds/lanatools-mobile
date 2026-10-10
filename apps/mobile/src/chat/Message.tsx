@@ -7,6 +7,7 @@ import { CopyIcon } from 'phosphor-react-native/src/icons/Copy'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { BrandMark } from '../brand/BrandMark'
 import { PressableScale } from '../components/PressableScale'
+import { StatusDot } from '../components/StatusDot'
 import { Label } from '../components/text'
 import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
@@ -61,6 +62,17 @@ function Working() {
   )
 }
 
+/** Why the turn ended early: coral, the colour of a refusal. */
+function Failure({ text }: { text: string }) {
+  const { colors } = useTheme()
+  return (
+    <View style={styles.failure} accessibilityRole="alert">
+      <StatusDot state="bad" />
+      <Text style={[styles.failureText, { color: colors.bad }]}>{text}</Text>
+    </View>
+  )
+}
+
 function CopyButton({ text }: { text: string }) {
   const { colors } = useTheme()
   const [copied, setCopied] = useState(false)
@@ -108,10 +120,19 @@ function AssistantMessage({ message }: { message: MessageType }) {
             )
           case 'text':
             return part.text ? (
-              <Markdown key={index}>{part.text}</Markdown>
+              <Markdown
+                key={index}
+                streaming={
+                  message.streaming && index === message.parts.length - 1
+                }
+              >
+                {part.text}
+              </Markdown>
             ) : null
         }
       })}
+      {message.stopped && <Label>Stopped</Label>}
+      {message.error && <Failure text={message.error} />}
       {!message.streaming && text.length > 0 && (
         <View style={styles.actions}>
           <CopyButton text={text} />
@@ -151,6 +172,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     minHeight: 32,
+  },
+  failure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  failureText: {
+    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    lineHeight: 20,
   },
   actions: { flexDirection: 'row', marginTop: -4 },
   action: {

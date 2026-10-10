@@ -1,0 +1,8 @@
+# Copy to .dev.vars (git-ignored) for `npm run dev`. In production these are
+# Worker secrets: `npx wrangler secret put ANTHROPIC_API_KEY`.
+ANTHROPIC_API_KEY=
+
+# A LanaTools MCP access token, for development until the app hands each
+# user's own token to the agent (docs/PLAN.md, milestone 4). Leave it empty
+# and the agent runs without LanaTools.
+LANATOOLS_MCP_TOKEN=

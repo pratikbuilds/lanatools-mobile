@@ -18,6 +18,7 @@ const ICON: Record<Provider, IconName> = {
   Jupiter: 'coin',
   Phoenix: 'chart',
   'pay.sh': 'receipt',
+  LanaTools: 'agent',
 }
 
 const DETAIL_IN = FadeIn.duration(180).easing(EASE_OUT)

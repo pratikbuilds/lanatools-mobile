@@ -4,15 +4,16 @@
 
 export type ToolState = 'running' | 'done' | 'error'
 
-/** The tool families a LanaTools grant can include. */
-export type Provider = 'Helius' | 'Jupiter' | 'Phoenix' | 'pay.sh'
+/** The tool families a LanaTools grant can include, and LanaTools' own. */
+export type Provider = 'Helius' | 'Jupiter' | 'Phoenix' | 'pay.sh' | 'LanaTools'
 
 export type TextPart = { type: 'text'; text: string }
 
 export type ReasoningPart = {
   type: 'reasoning'
   text: string
-  /** How long the agent thought, once it has finished. */
+  state: 'streaming' | 'done'
+  /** How long the agent thought, when known. */
   durationMs?: number
 }
 
@@ -58,6 +59,9 @@ export type Message = {
   createdAt: number
   /** True while the agent is still writing this message. */
   streaming?: boolean
+  /** The user stopped the agent before it finished. */
+  stopped?: boolean
+  /** Why the agent could not finish, in words for the user. */
   error?: string
 }
 

@@ -3,8 +3,11 @@
 export const PRIVY_APP_ID = process.env.EXPO_PUBLIC_PRIVY_APP_ID || null
 export const PRIVY_CLIENT_ID = process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID || null
 
-/** Plays back a mock agent; without Privy, it also signs in to a mock wallet. */
+/** Plays back a mock agent instead of the Flue agent. */
 export const MOCK_AGENT = process.env.EXPO_PUBLIC_MOCK_AGENT === '1'
+
+/** Without Privy IDs, signs in to a mock wallet so the whole flow can be used. */
+export const MOCK_WALLET = process.env.EXPO_PUBLIC_MOCK_WALLET === '1'
 
 /** What a wallet app shows when this app asks it to connect or sign. */
 export const APP_IDENTITY = {

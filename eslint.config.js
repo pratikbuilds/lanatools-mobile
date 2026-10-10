@@ -14,4 +14,10 @@ module.exports = defineConfig([
     ],
   },
   expo,
+  {
+    // Flue's agent hooks share React's `use` prefix but not its rules: an
+    // agent may declare an MCP connection conditionally.
+    files: ['apps/agent/**'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
 ])

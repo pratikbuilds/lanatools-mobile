@@ -155,6 +155,7 @@ export function scriptFor(prompt: string): Script {
       parts: [
         {
           type: 'reasoning',
+          state: 'done',
           text: 'Quote the swap first, then build it for the user to sign.',
           durationMs: 900,
         },
@@ -185,6 +186,7 @@ export function scriptFor(prompt: string): Script {
       parts: [
         {
           type: 'reasoning',
+          state: 'done',
           text: 'Search the pay.sh catalog, then make one paid call within the limit.',
           durationMs: 900,
         },

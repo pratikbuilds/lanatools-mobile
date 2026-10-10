@@ -3,7 +3,10 @@ import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmTableFromMarkdown } from 'mdast-util-gfm-table'
 import { gfmTable } from 'micromark-extension-gfm-table'
+import Animated, { FadeIn } from 'react-native-reanimated'
+import remend from 'remend'
 import { Hatch } from '../components/surfaces'
+import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import * as type from '../theme/type'
@@ -25,6 +28,17 @@ const OPTIONS = {
   extensions: [gfmTable()],
   mdastExtensions: [gfmTableFromMarkdown()],
 }
+
+/** `$` is a price far more often than maths in these replies. */
+const REMEND = {
+  linkMode: 'text-only',
+  inlineKatex: false,
+  katex: false,
+} as const
+
+// A block that arrives mid-stream fades in; words within the last block
+// simply appear, as text does when typed.
+const BLOCK_IN = FadeIn.duration(220).easing(EASE_OUT)
 
 /** A cell that is a figure: amounts, prices, percentages. */
 const FIGURE = /^[\s$€£+\-−~≈]*[\d.,]+\s*[%A-Za-z]{0,4}$/
@@ -290,18 +304,63 @@ function Block({
   }
 }
 
-/** Markdown from the agent, parsed once per change of `children`. */
+/**
+ * One top-level block. It re-renders only when its own source changes, so
+ * while a reply streams in, the finished blocks above the last one stay put.
+ */
+const MemoBlock = memo(
+  function MemoBlock({
+    node,
+    colors,
+    fade,
+  }: {
+    node: RootContent
+    source: string
+    colors: Palette
+    fade: boolean
+  }) {
+    return (
+      <Animated.View entering={fade ? BLOCK_IN : undefined}>
+        <Block node={node} colors={colors} />
+      </Animated.View>
+    )
+  },
+  (a, b) => a.source === b.source && a.colors === b.colors,
+)
+
+/**
+ * Markdown from the agent. While `streaming`, unfinished syntax is closed
+ * (`**bo` reads as bold, not as asterisks) and each new block fades in.
+ */
 export const Markdown = memo(function Markdown({
   children,
+  streaming = false,
 }: {
   children: string
+  streaming?: boolean
 }) {
   const { colors } = useTheme()
-  const tree = useMemo<Root>(() => fromMarkdown(children, OPTIONS), [children])
+  const source = streaming ? remend(children, REMEND) : children
+  const blocks = useMemo(() => {
+    const tree: Root = fromMarkdown(source, OPTIONS)
+    return tree.children.map((node) => ({
+      node,
+      source: source.slice(
+        node.position?.start.offset,
+        node.position?.end.offset,
+      ),
+    }))
+  }, [source])
   return (
     <View>
-      {tree.children.map((node, index) => (
-        <Block key={index} node={node} colors={colors} />
+      {blocks.map((block, index) => (
+        <MemoBlock
+          key={index}
+          node={block.node}
+          source={block.source}
+          colors={colors}
+          fade={streaming}
+        />
       ))}
     </View>
   )
