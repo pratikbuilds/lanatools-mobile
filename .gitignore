@@ -10,4 +10,3 @@ dist/
 .dev.vars
 .flue-vite/
 .flue-vite.wrangler.jsonc
-.dev.lanatools.json

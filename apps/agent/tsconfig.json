@@ -10,5 +10,5 @@
     "verbatimModuleSyntax": true,
     "noEmit": true
   },
-  "include": ["src", "scripts", "*.config.ts"]
+  "include": ["src", "*.config.ts", "worker-configuration.d.ts"]
 }

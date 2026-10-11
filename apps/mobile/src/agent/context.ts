@@ -1,4 +1,5 @@
 import { createContext, use } from 'react'
+import type { Outcome } from '../lanatools/transactions'
 import type { Conversation } from './types'
 
 // What every screen reads: the conversations, from whichever agent is on.
@@ -7,6 +8,9 @@ import type { Conversation } from './types'
 export const NEW = 'new'
 
 export type ConversationSummary = Omit<Conversation, 'messages'>
+
+/** What became of a prepared transaction (lanatools/transactions.ts). */
+export type TransactionOutcome = Outcome
 
 export type Store = {
   conversations: ConversationSummary[]
@@ -19,11 +23,11 @@ export type Store = {
   stop: () => void
   rename: (id: string, title: string) => void
   remove: (id: string) => void
-  /** Settles a prepared transaction after the user signs or declines it. */
+  /** Records what became of a prepared transaction, and tells the agent. */
   settleTransaction: (
     messageId: string,
     partId: string,
-    state: 'signed' | 'declined',
+    outcome: TransactionOutcome,
   ) => void
 }
 

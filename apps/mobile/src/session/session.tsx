@@ -50,6 +50,7 @@ function LocalSession({ children }: { children: ReactNode }) {
       retryWallet: () => undefined,
       signOut: async () => setMethod(null),
       getAccessToken: async () => null,
+      signer: null,
     }
   }, [method])
 

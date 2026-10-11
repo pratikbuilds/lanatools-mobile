@@ -1,6 +1,21 @@
 import { createContext } from 'react'
 import type { SignInMethod } from './wallet'
 
+/**
+ * The wallet that signs the agent's transactions on this phone: the
+ * embedded wallet for a Google user, the wallet app they signed in with
+ * otherwise (over Mobile Wallet Adapter). It signs and never sends;
+ * LanaTools sends.
+ */
+export type Signer = {
+  address: string
+  kind: 'embedded' | 'wallet'
+  /** Signs a serialized transaction without changing it. */
+  signTransaction: (transaction: Uint8Array) => Promise<Uint8Array>
+  /** Signs the exact bytes of a message; returns the 64-byte signature. */
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>
+}
+
 /** Who is signed in, and how to sign in or out. */
 export type Session = {
   /**
@@ -24,6 +39,8 @@ export type Session = {
   signOut: () => Promise<void>
   /** The Privy access token the agent will verify. */
   getAccessToken: () => Promise<string | null>
+  /** Null until signed in, and in builds without Privy. */
+  signer: Signer | null
 }
 
 export const SessionContext = createContext<Session | null>(null)

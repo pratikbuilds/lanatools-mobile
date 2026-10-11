@@ -70,6 +70,8 @@ export default function SignIn() {
     } catch (error) {
       setPending(null)
       if (isUserCancel(error)) return
+      // The sheet shows a short message; the cause goes to the logs.
+      console.warn(`${method} sign-in failed`, error)
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       setMessage(failure(method, error))
     }

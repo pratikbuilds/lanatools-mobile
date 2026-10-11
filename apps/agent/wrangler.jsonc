@@ -8,6 +8,16 @@
   "observability": { "traces": { "enabled": true } },
   // Public: the LanaTools production Privy app, whose users the agent serves.
   "vars": { "PRIVY_APP_ID": "cmtu5w0xo00xn0ckyrqhcsgoc" },
+  // Each user's latest LanaTools access token, encrypted (src/tokens.ts).
+  // The id is a placeholder for local development; deploying needs the id
+  // of a real database (`npx wrangler d1 create lanatools-agent`).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lanatools-agent",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
   // Flue generates one Durable Object class per agent (Lana ->
   // FlueLanaAgent). Migrations are append-only: add a tag, never edit one.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FlueLanaAgent"] }],

@@ -26,17 +26,24 @@ type Segment =
   | { kind: 'steps'; steps: Step[]; at: number }
   | { kind: 'part'; part: Exclude<Part, Step>; at: number }
 
-/** The parts in order, with each run of thinking and tool calls as one. */
+/**
+ * The parts in order, with each run of thinking and tool calls as one.
+ * Transactions to sign come last, after the words that introduce them:
+ * they are what the reply asks the user to do.
+ */
 function segment(parts: Part[]): Segment[] {
   const out: Segment[] = []
+  const transactions: Segment[] = []
   parts.forEach((part, at) => {
     const last = out.at(-1)
-    if (part.type === 'reasoning' || part.type === 'tool') {
+    if (part.type === 'transaction')
+      transactions.push({ kind: 'part', part, at })
+    else if (part.type === 'reasoning' || part.type === 'tool') {
       if (last?.kind === 'steps') last.steps.push(part)
       else out.push({ kind: 'steps', steps: [part], at })
     } else out.push({ kind: 'part', part, at })
   })
-  return out
+  return [...out, ...transactions]
 }
 
 function textOf(message: MessageType) {
@@ -119,11 +126,15 @@ function CopyButton({ text }: { text: string }) {
 function AssistantMessage({ message }: { message: MessageType }) {
   const text = textOf(message)
   const segments = segment(message.parts)
+  const writing = segments.findLastIndex(
+    (seg) => !(seg.kind === 'part' && seg.part.type === 'transaction'),
+  )
   return (
     <Animated.View entering={ARRIVE} style={styles.assistant}>
       {message.parts.length === 0 && message.streaming && <Working />}
       {segments.map((seg, index) => {
-        const last = index === segments.length - 1
+        // The segment still being written: the last one before any cards.
+        const last = index === writing
         if (seg.kind === 'steps')
           return (
             <Activity

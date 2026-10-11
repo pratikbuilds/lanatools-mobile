@@ -10,12 +10,19 @@ import {
   MobileWalletProvider,
   createSolanaMainnet,
   fromUint8Array,
+  toUint8Array,
   useMobileWallet,
 } from '@wallet-ui/react-native-kit'
+import { getTransactionDecoder, getTransactionEncoder } from '@solana/kit'
 import { APP_IDENTITY, SIWS_DOMAIN, SIWS_URI } from './config'
-import { errorMessage, solanaStatusFrom, walletStateFrom } from './wallet'
+import {
+  errorMessage,
+  externalWalletFrom,
+  solanaStatusFrom,
+  walletStateFrom,
+} from './wallet'
 import { SessionContext } from './context'
-import type { Session } from './context'
+import type { Session, Signer } from './context'
 import type { ReactNode } from 'react'
 
 // Privy, the way perp-ai integrates it: Google or a Solana wallet on the
@@ -148,6 +155,64 @@ function usePrivySession(): Session {
     }
   }, [logout, disconnect])
 
+  // Transactions are signed by the wallet the user came in with: their
+  // wallet app over MWA, or for a Google user the embedded wallet, each
+  // after they approve it in the app.
+  const external = user ? externalWalletFrom(user.linked_accounts) : null
+  const { signTransaction: signWithWallet, account: walletAccount } =
+    mobileWallet
+  const signer = useMemo<Signer | null>(() => {
+    if (external)
+      return {
+        address: external,
+        kind: 'wallet',
+        signTransaction: async (bytes) => {
+          // After a restart the wallet app is asked to authorize again.
+          const account = walletAccount ?? (await connect())
+          if (account.address.toString() !== external)
+            throw new Error(
+              `Switch your wallet app to ${external.slice(0, 4)}…${external.slice(-4)}, the wallet you signed in with.`,
+            )
+          const signed = await signWithWallet(
+            getTransactionDecoder().decode(bytes),
+          )
+          return new Uint8Array(getTransactionEncoder().encode(signed))
+        },
+        signMessage: async (message) => {
+          const account = walletAccount ?? (await connect())
+          if (account.address.toString() !== external)
+            throw new Error(
+              'Switch your wallet app to the wallet you signed in with.',
+            )
+          const signed = await signMessages(message)
+          const signature = signed instanceof Uint8Array ? signed : signed[0]
+          if (!signature) throw new Error('The wallet returned no signature.')
+          return signature
+        },
+      }
+    if (!embedded) return null
+    return {
+      address: embedded.address,
+      kind: 'embedded',
+      signTransaction: async (bytes) => {
+        const provider = await embedded.getProvider()
+        const { signedTransaction } = await provider.request({
+          method: 'signTransaction',
+          params: { transaction: bytes },
+        })
+        return signedTransaction
+      },
+      signMessage: async (message) => {
+        const provider = await embedded.getProvider()
+        const { signature } = await provider.request({
+          method: 'signMessage',
+          params: { message: fromUint8Array(message) },
+        })
+        return toUint8Array(signature)
+      },
+    }
+  }, [external, embedded, walletAccount, connect, signWithWallet, signMessages])
+
   const state = walletStateFrom({
     isReady,
     user: user ? { id: user.id, linked_accounts: user.linked_accounts } : null,
@@ -174,8 +239,10 @@ function usePrivySession(): Session {
       retryWallet,
       signOut,
       getAccessToken,
+      signer: status === 'signedIn' ? signer : null,
     }),
     [
+      signer,
       status,
       address,
       method,

@@ -59,14 +59,22 @@ function swap(state: TransactionPart['state']): TransactionPart {
   return {
     type: 'transaction',
     id: 'tx-swap',
+    tool: 'jupiter_swap',
     state,
-    title: 'Swap SOL for USDC',
-    network: 'Solana mainnet',
-    pay: { amount: '0.5', token: 'SOL' },
-    receive: { amount: '72.41', token: 'USDC' },
-    feeSol: '0.000085',
-    route: 'Jupiter · Meteora DLMM',
-    expiresInS: 54,
+    review: {
+      title: 'Swap SOL for USDC',
+      description: 'Swap 0.5 SOL for at least 72.05 USDC through Jupiter.',
+      actionLabel: 'Swap',
+      fields: [
+        { label: 'You pay', value: '0.5 SOL' },
+        { label: 'You receive', value: '≈ 72.41 USDC' },
+        { label: 'Minimum received', value: '72.05 USDC' },
+        { label: 'Max slippage', value: '0.5%' },
+        { label: 'Route', value: 'Meteora DLMM' },
+      ],
+    },
+    wallet: MOCK_ADDRESS,
+    expiresAt: Date.now() + 15 * 60_000,
   }
 }
 
