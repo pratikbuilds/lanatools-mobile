@@ -116,6 +116,7 @@ export async function signAndSend(
         ),
       )
   } catch (error) {
+    console.warn('Signing failed', id, error)
     throw new RetryError(
       isUserCancel(error)
         ? 'You cancelled in your wallet. Nothing was sent.'
@@ -133,8 +134,11 @@ export async function signAndSend(
       transaction: getBase64Decoder().decode(signed),
       ...(messageSignature ? { messageSignature } : {}),
     })) as Result
+    if (sent.status !== 'confirmed')
+      console.warn('send_transaction answered', id, sent.status, sent)
     return settled(sent) ?? { state: 'pending', signature: sent.signature }
   } catch (error) {
+    console.warn('send_transaction failed', id, error)
     if (error instanceof ToolError && error.code === 'transaction_expired')
       return { state: 'failed', error: EXPIRED }
     if (error instanceof ToolError && error.code === 'invalid_input')

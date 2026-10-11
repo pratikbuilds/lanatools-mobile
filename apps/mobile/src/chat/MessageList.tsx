@@ -27,6 +27,8 @@ export function MessageList({ messages }: { messages: MessageType[] }) {
   const insets = useSafeAreaInsets()
   const scroll = useRef<Reanimated.ScrollView>(null)
   const atEnd = useRef(true)
+  // Set when the user drags the thread themselves, so it stops following.
+  const dragged = useRef(false)
   const [showDown, setShowDown] = useState(false)
 
   // The latest exchange, from the user's message down, once the agent is
@@ -38,19 +40,37 @@ export function MessageList({ messages }: { messages: MessageType[] }) {
   if (live && latest !== anchor) setAnchor(latest)
   const anchored = anchor !== null && anchor === latest
 
-  // Room below the exchange so that it can sit at the top of the screen.
+  // Room below the exchange so that it can sit at the top of the screen:
+  // enough that the content reaches the anchor plus a screen. Measured from
+  // the messages' own layout, never the content size, which on Android
+  // includes this padding and would feed back into it.
   const viewport = useSharedValue(0)
-  const content = useSharedValue(0)
   const anchorY = useSharedValue(0)
+  const lastBottom = useSharedValue(0)
   const blankSpace = useDerivedValue(() =>
     anchored
-      ? Math.max(0, viewport.get() - (content.get() - anchorY.get()))
+      ? Math.max(
+          0,
+          anchorY.get() + viewport.get() - lastBottom.get() - PADDING_BOTTOM,
+        )
       : 0,
   )
+
+  // When a reply finishes, land on its end: its last words may have pushed
+  // the end out of view after following stopped.
+  const wasLive = useRef(live)
+  useEffect(() => {
+    if (wasLive.current && !live && !dragged.current)
+      requestAnimationFrame(() =>
+        scroll.current?.scrollToEnd({ animated: true }),
+      )
+    wasLive.current = live
+  }, [live])
 
   // Open at the latest message; after a send, scroll it to the top.
   useEffect(() => {
     atEnd.current = true
+    dragged.current = false
     requestAnimationFrame(() =>
       scroll.current?.scrollToEnd({ animated: anchor !== null }),
     )
@@ -70,21 +90,28 @@ export function MessageList({ messages }: { messages: MessageType[] }) {
         onLayout={(e) => viewport.set(e.nativeEvent.layout.height)}
         onEndVisible={(visible) => {
           atEnd.current = visible
+          if (visible) dragged.current = false
           setShowDown(!visible)
         }}
-        onContentSizeChange={(_, height) => {
-          content.set(height)
-          if (atEnd.current) scroll.current?.scrollToEnd({ animated: true })
+        onScrollBeginDrag={() => {
+          dragged.current = true
+        }}
+        onContentSizeChange={() => {
+          // Follow the reply while it's written, even when a large batch
+          // momentarily puts the end out of view, unless the user scrolled
+          // away; once they're back at the end, follow again.
+          if (atEnd.current || (live && !dragged.current))
+            scroll.current?.scrollToEnd({ animated: true })
         }}
       >
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <View
             key={message.id}
-            onLayout={
-              anchored && message.id === anchor
-                ? (e) => anchorY.set(e.nativeEvent.layout.y)
-                : undefined
-            }
+            onLayout={(e) => {
+              const { y, height } = e.nativeEvent.layout
+              if (anchored && message.id === anchor) anchorY.set(y)
+              if (index === messages.length - 1) lastBottom.set(y + height)
+            }}
           >
             <Message message={message} />
           </View>
@@ -116,12 +143,14 @@ export function MessageList({ messages }: { messages: MessageType[] }) {
   )
 }
 
+const PADDING_BOTTOM = 8
+
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: PADDING_BOTTOM,
   },
   down: {
     position: 'absolute',
