@@ -58,18 +58,42 @@ export function summarize(input: unknown) {
     .join(' · ')
 }
 
-/** A tool result's JSON: the structured content, or the whole text. */
-function resultJson(output: unknown): unknown {
-  if (typeof output !== 'string') return output
-  const marker = output.indexOf('Structured content:')
-  const text = marker === -1 ? output : output.slice(marker + 19)
+/**
+ * The first complete JSON object in `text`, by matching braces outside
+ * strings, so text after it (Flue appends the plain content) is ignored.
+ */
+function firstObject(text: string): unknown {
   const start = text.indexOf('{')
   if (start === -1) return null
-  try {
-    return JSON.parse(text.slice(start))
-  } catch {
-    return null
+  let depth = 0
+  let inString = false
+  for (let i = start; i < text.length; i++) {
+    const char = text[i]
+    if (inString) {
+      if (char === '\\') i++
+      else if (char === '"') inString = false
+    } else if (char === '"') inString = true
+    else if (char === '{') depth++
+    else if (char === '}' && --depth === 0) {
+      try {
+        return JSON.parse(text.slice(start, i + 1))
+      } catch {
+        return null
+      }
+    }
   }
+  return null
+}
+
+/** A tool result's JSON: its structured content, wherever Flue put it. */
+function resultJson(output: unknown): unknown {
+  if (typeof output === 'string') {
+    const marker = output.indexOf('Structured content:')
+    return firstObject(marker === -1 ? output : output.slice(marker))
+  }
+  if (output && typeof output === 'object' && 'structuredContent' in output)
+    return output.structuredContent
+  return output
 }
 
 type TransactionResult = {

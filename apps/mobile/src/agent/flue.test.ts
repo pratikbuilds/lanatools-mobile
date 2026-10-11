@@ -197,6 +197,15 @@ describe('transactionFrom', () => {
     })
   })
 
+  it('ignores the text Flue adds after the structured content', () => {
+    const output = `Structured content:\n${JSON.stringify(result, null, 2)}\n\nContent:\n${JSON.stringify(result)} {"more": "}"}`
+    assert.equal(transactionFrom(output)?.id, 'req-1')
+  })
+
+  it('reads structured content from an object output', () => {
+    assert.equal(transactionFrom({ structuredContent: result })?.id, 'req-1')
+  })
+
   it('reads a bare JSON result too', () => {
     assert.equal(transactionFrom(JSON.stringify(result))?.id, 'req-1')
   })
