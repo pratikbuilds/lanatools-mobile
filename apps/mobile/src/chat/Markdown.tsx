@@ -5,7 +5,6 @@ import { gfmTableFromMarkdown } from 'mdast-util-gfm-table'
 import { gfmTable } from 'micromark-extension-gfm-table'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import remend from 'remend'
-import { Hatch } from '../components/surfaces'
 import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
@@ -22,7 +21,7 @@ import type { ReactNode } from 'react'
 import type { TextStyle } from 'react-native'
 
 // The agent's replies, rendered in the brand's type: sentences in Inter
-// Tight, figures and code in Paper Mono, tables as the dashboard's ledger.
+// Tight, figures and code in Paper Mono, tables as a light ledger.
 
 const OPTIONS = {
   extensions: [gfmTable()],
@@ -163,13 +162,9 @@ function Ledger({ node, colors }: { node: Table; colors: Palette }) {
             style={[
               styles.row,
               styles.headRow,
-              {
-                backgroundColor: colors.panel2,
-                borderBottomColor: colors.line,
-              },
+              { borderBottomColor: colors.line },
             ]}
           >
-            <Hatch />
             {head.children.map((c, i) => cell(c, i, true))}
           </View>
         )}
@@ -406,24 +401,29 @@ const styles = StyleSheet.create({
   ledger: {
     flexGrow: 1,
     borderWidth: 1,
-    borderRadius: radius.card,
+    borderRadius: radius.frame,
     overflow: 'hidden',
   },
   row: { flexDirection: 'row' },
-  headRow: { borderBottomWidth: 1 },
+  headRow: { borderBottomWidth: 1, paddingTop: 2 },
   // Equal flex columns, so every row's cells line up.
   cell: {
     flex: 1,
     minWidth: 84,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   cellRight: { alignItems: 'flex-end' },
-  cellText: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 },
+  cellText: {
+    fontFamily: fonts.sans,
+    fontWeight: '500',
+    fontSize: 14.5,
+    lineHeight: 20,
+  },
   figure: {
     fontFamily: fonts.mono,
     fontWeight: '500',
-    fontSize: 13,
+    fontSize: 13.5,
     lineHeight: 20,
     fontVariant: ['tabular-nums'],
   },

@@ -87,7 +87,11 @@ export const palettes: Record<ThemeName, Palette> = {
   },
 }
 
-/** Corner radii from the dashboard's surfaces. */
+/**
+ * Corner radii. Surfaces keep the dashboard's (frame, card, field); the
+ * chat's controls commit to round: pill buttons and chips, a 24 composer
+ * and 20 bubbles, rather than an in-between rounded rectangle.
+ */
 export const radius = {
   frame: 14,
   card: 10,
@@ -95,6 +99,9 @@ export const radius = {
   button: 9,
   field: 8,
   highlight: 4,
+  bubble: 20,
+  composer: 24,
+  pill: 999,
 } as const
 
 /**
