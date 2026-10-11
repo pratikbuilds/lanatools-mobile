@@ -8,6 +8,7 @@ export default defineConfig({
     flue({ providers: ['anthropic'] }),
     cloudflare({ config: flueWorkerConfig() }),
   ],
-  // The Android emulator reaches this through `adb reverse tcp:8787 tcp:8787`.
-  server: { port: 8787 },
+  // The Android emulator reaches this through `adb reverse tcp:8787 tcp:8787`,
+  // which connects over IPv4; Vite would otherwise listen on ::1 only.
+  server: { host: '127.0.0.1', port: 8787 },
 })
