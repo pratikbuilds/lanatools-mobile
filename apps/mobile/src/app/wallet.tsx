@@ -15,6 +15,7 @@ import { useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import { formatSol, formatUsdc } from '../wallet/balances'
+import { explorer } from '../wallet/explorer'
 import { useBalances } from '../wallet/provider'
 
 /**
@@ -109,11 +110,9 @@ export default function Wallet() {
           />
           <Button
             size="lg"
-            label="Solscan"
+            label="Explorer"
             trailing="↗"
-            onPress={() =>
-              void Linking.openURL(`https://solscan.io/account/${address}`)
-            }
+            onPress={() => void Linking.openURL(explorer.address(address))}
             style={styles.half}
           />
         </View>

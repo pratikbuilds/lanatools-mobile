@@ -10,6 +10,7 @@ import { Hatch } from '../components/surfaces'
 import { Label, Small } from '../components/text'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
+import { explorer } from '../wallet/explorer'
 import type { TransactionPart } from '../agent/types'
 import type { DotState } from '../components/StatusDot'
 
@@ -46,6 +47,7 @@ export function TransactionCard({
   const [checking, setChecking] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const status = STATUS[part.state]
+  const signature = part.signature
 
   // A pending transaction may still land: ask LanaTools what became of it.
   const check = async () => {
@@ -129,13 +131,13 @@ export function TransactionCard({
             }
             style={styles.action}
           />
-        ) : part.state === 'sent' && part.signature ? (
+        ) : part.state === 'sent' && signature ? (
           <Button
             size="lg"
-            label="View on Solscan"
+            label={`View on ${explorer.name}`}
             trailing="↗"
             onPress={() =>
-              void Linking.openURL(`https://solscan.io/tx/${part.signature}`)
+              void Linking.openURL(explorer.transaction(signature))
             }
             style={styles.action}
           />
@@ -148,6 +150,17 @@ export function TransactionCard({
               onPress={() => void check()}
               style={styles.action}
             />
+            {signature && (
+              <Button
+                size="lg"
+                label={`View on ${explorer.name}`}
+                trailing="↗"
+                onPress={() =>
+                  void Linking.openURL(explorer.transaction(signature))
+                }
+                style={styles.secondary}
+              />
+            )}
             <Small style={styles.note}>
               {note ??
                 'LanaTools has it but hasn’t confirmed it yet. It may still land, so don’t sign it again.'}
@@ -199,5 +212,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   action: { marginTop: 16 },
+  secondary: { marginTop: 10 },
   note: { marginTop: 12 },
 })
