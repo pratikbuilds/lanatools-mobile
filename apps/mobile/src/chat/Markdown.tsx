@@ -6,22 +6,17 @@ import { gfmTable } from 'micromark-extension-gfm-table'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import remend from 'remend'
 import { EASE_OUT } from '../theme/motion'
+import { DataTable } from './DataTable'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import * as type from '../theme/type'
 import type { Palette } from '../theme/tokens'
-import type {
-  PhrasingContent,
-  Root,
-  RootContent,
-  Table,
-  TableCell,
-} from 'mdast'
+import type { PhrasingContent, Root, RootContent, Table } from 'mdast'
 import type { ReactNode } from 'react'
 import type { TextStyle } from 'react-native'
 
 // The agent's replies, rendered in the brand's type: sentences in Inter
-// Tight, figures and code in Paper Mono, tables as a light ledger.
+// Tight, figures and code in Paper Mono, tables as lists (DataTable).
 
 const OPTIONS = {
   extensions: [gfmTable()],
@@ -38,9 +33,6 @@ const REMEND = {
 // A block that arrives mid-stream fades in; words within the last block
 // simply appear, as text does when typed.
 const BLOCK_IN = FadeIn.duration(220).easing(EASE_OUT)
-
-/** A cell that is a figure: amounts, prices, percentages. */
-const FIGURE = /^[\s$€£+\-−~≈]*[\d.,]+\s*[%A-Za-z]{0,4}$/
 
 function plain(nodes: PhrasingContent[]): string {
   return nodes
@@ -116,71 +108,18 @@ function Inline({
   })
 }
 
-function Ledger({ node, colors }: { node: Table; colors: Palette }) {
+function TableBlock({ node, colors }: { node: Table; colors: Palette }) {
   const [head, ...rows] = node.children
-  const align = node.align ?? []
-  const cell = (c: TableCell, column: number, header: boolean) => {
-    const text = plain(c.children)
-    const figure = !header && FIGURE.test(text)
-    const right = align[column] === 'right' || figure
-    return (
-      <View
-        key={column}
-        style={[styles.cell, right && styles.cellRight]}
-        accessibilityRole={header ? 'header' : undefined}
-      >
-        <Text
-          style={
-            header
-              ? [type.label, { color: colors.text3 }]
-              : figure
-                ? [styles.figure, { color: colors.text }]
-                : [styles.cellText, { color: colors.text }]
-          }
-          maxFontSizeMultiplier={1.3}
-        >
-          {header ? text : <Inline nodes={c.children} colors={colors} />}
-        </Text>
-      </View>
-    )
-  }
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.block}
-      contentContainerStyle={styles.ledgerScroll}
-    >
-      <View
-        style={[
-          styles.ledger,
-          { borderColor: colors.line, backgroundColor: colors.panel },
-        ]}
-      >
-        {head && (
-          <View
-            style={[
-              styles.row,
-              styles.headRow,
-              { borderBottomColor: colors.line },
-            ]}
-          >
-            {head.children.map((c, i) => cell(c, i, true))}
-          </View>
-        )}
-        {rows.map((row, r) => (
-          <View
-            key={r}
-            style={[
-              styles.row,
-              r > 0 && { borderTopWidth: 1, borderTopColor: colors.line },
-            ]}
-          >
-            {row.children.map((c, i) => cell(c, i, false))}
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+    <DataTable
+      head={head?.children.map((c) => plain(c.children).trim()) ?? []}
+      rows={rows.map((row) =>
+        row.children.map((c) => ({
+          text: plain(c.children).trim(),
+          node: <Inline nodes={c.children} colors={colors} />,
+        })),
+      )}
+    />
   )
 }
 
@@ -287,7 +226,7 @@ function Block({
         </View>
       )
     case 'table':
-      return <Ledger node={node} colors={colors} />
+      return <TableBlock node={node} colors={colors} />
     case 'thematicBreak':
       return (
         <View
@@ -397,34 +336,4 @@ const styles = StyleSheet.create({
   lang: { marginBottom: 6 },
   code: { fontFamily: fonts.mono, fontSize: 13, lineHeight: 20 },
   rule: { height: 1 },
-  ledgerScroll: { flexGrow: 1 },
-  ledger: {
-    flexGrow: 1,
-    borderWidth: 1,
-    borderRadius: radius.frame,
-    overflow: 'hidden',
-  },
-  row: { flexDirection: 'row' },
-  headRow: { borderBottomWidth: 1, paddingTop: 2 },
-  // Equal flex columns, so every row's cells line up.
-  cell: {
-    flex: 1,
-    minWidth: 84,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  cellRight: { alignItems: 'flex-end' },
-  cellText: {
-    fontFamily: fonts.sans,
-    fontWeight: '500',
-    fontSize: 14.5,
-    lineHeight: 20,
-  },
-  figure: {
-    fontFamily: fonts.mono,
-    fontWeight: '500',
-    fontSize: 13.5,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
-  },
 })

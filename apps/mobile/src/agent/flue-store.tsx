@@ -6,7 +6,7 @@ import { useSession } from '../session/session'
 import { AGENT_URL } from './config'
 import { NEW, StoreContext, titleFrom } from './context'
 import { CANT_START, toThread } from './flue'
-import type { ConversationSummary, Store } from './context'
+import type { ConversationSummary, Store, TransactionOutcome } from './context'
 import type { Message } from './types'
 import type { ReactNode } from 'react'
 
@@ -53,6 +53,30 @@ function unstarted(id: string, text: string): Message[] {
   ]
 }
 
+function withOutcomes(
+  thread: Message[],
+  outcomes: Record<string, TransactionOutcome>,
+): Message[] {
+  return thread.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) => {
+      const outcome = part.type === 'transaction' && outcomes[part.id]
+      return outcome ? { ...part, ...outcome } : part
+    }),
+  }))
+}
+
+function signalFor(id: string, outcome: TransactionOutcome) {
+  switch (outcome.state) {
+    case 'sent':
+      return `The user reviewed and signed transaction ${id} in the app, and LanaTools sent it. Signature: ${outcome.signature}. Tell them in one sentence; call get_transaction_status with id ${id} if you need to confirm it landed.`
+    case 'declined':
+      return `The user declined transaction ${id} in the app. Nothing was sent. Don't prepare it again unless they ask.`
+    case 'failed':
+      return `Transaction ${id} could not be signed or sent: ${outcome.error}. Nothing was sent.`
+  }
+}
+
 export function FlueConversationsProvider({
   children,
 }: {
@@ -66,6 +90,14 @@ export function FlueConversationsProvider({
   const [failed, setFailed] = useState<Record<string, string>>({})
   // A new chat's first message, sent once its conversation is followed.
   const first = useRef<string | null>(null)
+  // What became of each prepared transaction on this phone, by request id.
+  const [outcomes, setOutcomes] = useState<Record<string, TransactionOutcome>>(
+    {},
+  )
+  // The agent prepares transactions for the wallet that signs them here.
+  const { signer } = session
+  const signerAddress = signer?.address ?? null
+  const signerKind = signer?.kind ?? null
 
   // Called on every request and reconnect, so a refreshed token is always
   // the one sent.
@@ -105,15 +137,20 @@ export function FlueConversationsProvider({
     // The hook found no conversation at this id when it mounted, so once
     // the first message has created one, it looks again and follows it. A
     // failed send stays in the thread with its error.
-    sendMessage(text).then(refresh, () => {})
-  }, [client, refresh, sendMessage])
+    sendMessage(
+      text,
+      signerAddress
+        ? { initialData: { wallet: signerAddress, walletKind: signerKind } }
+        : undefined,
+    ).then(refresh, () => {})
+  }, [client, refresh, sendMessage, signerAddress, signerKind])
 
   const messages = useMemo(
     () =>
       activeId in failed
         ? unstarted(activeId, failed[activeId] ?? '')
-        : toThread(agent.messages, agent.status),
-    [activeId, agent.messages, agent.status, failed],
+        : withOutcomes(toThread(agent.messages, agent.status), outcomes),
+    [activeId, agent.messages, agent.status, failed, outcomes],
   )
   const working =
     starting || agent.status === 'submitted' || agent.status === 'streaming'
@@ -172,8 +209,20 @@ export function FlueConversationsProvider({
         setConversations((all) => all.filter((c) => c.id !== id))
         if (id === activeId) setActiveId(NEW)
       },
-      // The agent prepares no transactions yet (docs/PLAN.md, milestone 6).
-      settleTransaction: () => {},
+      settleTransaction: (_messageId, partId, outcome) => {
+        setOutcomes((all) => ({ ...all, [partId]: outcome }))
+        // The agent hears what happened as a signal, which the thread
+        // doesn't show, and carries on from there.
+        client
+          ?.send({
+            message: {
+              kind: 'signal',
+              type: 'transaction',
+              body: signalFor(partId, outcome),
+            },
+          })
+          .catch(() => {})
+      },
     }
   }, [
     activeId,

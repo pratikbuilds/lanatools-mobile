@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { useConversations } from '../agent/store'
@@ -7,19 +7,32 @@ import { Button } from '../components/Button'
 import { Row, Value } from '../components/Ledger'
 import { SheetScreen, SheetTitle } from '../components/SheetHead'
 import { Label, Small } from '../components/text'
-import { shortAddress, useSession } from '../session/session'
+import { useLanaTools } from '../lanatools/link'
+import { ToolError } from '../lanatools/mcp'
+import { SignError, signAndSend } from '../lanatools/transactions'
+import { MOCK_AGENT, shortAddress, useSession } from '../session/session'
+import { isNoWallet, isUserCancel } from '../session/wallet'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { TransactionPart } from '../agent/types'
 
+function remaining(ms: number) {
+  if (ms <= 0) return 'Expired'
+  const minutes = Math.floor(ms / 60_000)
+  const seconds = Math.floor((ms % 60_000) / 1000)
+  return minutes > 0 ? `in ${minutes}m ${seconds}s` : `in ${seconds}s`
+}
+
 /**
- * Review and sign. Everything here is what the app decoded from the
- * transaction itself, not the agent's description of it, and nothing is
- * sent until the user signs with their wallet on this phone.
+ * Review and sign. The review is LanaTools' own account of the transaction
+ * it built, and nothing moves until the user signs here: with the wallet
+ * app they signed in with, or for a Google user their LanaTools wallet.
+ * LanaTools checks the signed bytes are the ones it built, then sends them.
  */
 export default function ReviewTransaction() {
   const { colors } = useTheme()
   const session = useSession()
+  const lanatools = useLanaTools()
   const store = useConversations()
   const { messageId, partId } = useLocalSearchParams<{
     messageId: string
@@ -30,59 +43,79 @@ export default function ReviewTransaction() {
     ?.parts.find(
       (p): p is TransactionPart => p.type === 'transaction' && p.id === partId,
     )
-  const [left, setLeft] = useState(part?.expiresInS ?? 0)
+  const [now, setNow] = useState(Date.now)
   const [signing, setSigning] = useState(false)
-
+  const [problem, setProblem] = useState<string | null>(null)
   useEffect(() => {
-    const timer = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000)
+    const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
 
   if (!part || !messageId) return null
-  const expired = left === 0
+  const signer = session.signer
+  const left = part.expiresAt - now
+  const expired = left <= 0
+  const wrongWallet = !!signer && signer.address !== part.wallet
+  const action = part.review.actionLabel
+  const signerName =
+    signer?.kind === 'wallet' ? 'your wallet app' : 'your LanaTools wallet'
+
+  const settle = (outcome: Parameters<typeof store.settleTransaction>[2]) => {
+    store.settleTransaction(messageId, part.id, outcome)
+    router.back()
+  }
 
   const sign = async () => {
+    setProblem(null)
     setSigning(true)
-    // The mock wallet signs instantly; Privy's provider replaces this.
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    store.settleTransaction(messageId, part.id, 'signed')
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    router.back()
+    try {
+      if (MOCK_AGENT) {
+        await new Promise((resolve) => setTimeout(resolve, 900))
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        settle({ state: 'sent', signature: '4vJ9mockQe2X' })
+        return
+      }
+      if (!signer) throw new SignError('Sign in to sign this transaction.')
+      const access = await lanatools.accessToken()
+      if (!access) throw new SignError('Connect LanaTools to send it.')
+      const sent = await signAndSend(access.token, part.id, signer)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      settle({ state: 'sent', signature: sent.signature })
+    } catch (error) {
+      setSigning(false)
+      if (isUserCancel(error)) {
+        setProblem(`You cancelled in ${signerName}. Nothing was sent.`)
+        return
+      }
+      console.warn('Signing failed', error)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      if (isNoWallet(error)) {
+        setProblem(
+          'No wallet app on this phone answered. Open it and try again.',
+        )
+        return
+      }
+      // LanaTools refused it for good: say so in the thread and the agent.
+      if (
+        error instanceof SignError ||
+        (error instanceof ToolError && error.code === 'transaction_expired')
+      ) {
+        settle({ state: 'failed', error: error.message })
+        return
+      }
+      setProblem(
+        error instanceof Error ? error.message : 'Signing failed. Try again.',
+      )
+    }
   }
 
   return (
     <SheetScreen context="review">
-      <Label>Decoded on this phone</Label>
-      <SheetTitle>{part.title}</SheetTitle>
-
-      <View
-        style={[
-          styles.amounts,
-          { backgroundColor: colors.bg, borderColor: colors.line },
-        ]}
-      >
-        <View style={styles.amount}>
-          <Label>You pay</Label>
-          <Text style={[styles.figure, { color: colors.text }]}>
-            {part.pay.amount}
-            <Text style={[styles.unit, { color: colors.text3 }]}>
-              {' '}
-              {part.pay.token}
-            </Text>
-          </Text>
-        </View>
-        <View style={[styles.split, { backgroundColor: colors.line }]} />
-        <View style={styles.amount}>
-          <Label>You receive about</Label>
-          <Text style={[styles.figure, { color: colors.text }]}>
-            {part.receive.amount}
-            <Text style={[styles.unit, { color: colors.text3 }]}>
-              {' '}
-              {part.receive.token}
-            </Text>
-          </Text>
-        </View>
-      </View>
+      <Label>Prepared by LanaTools · Solana mainnet</Label>
+      <SheetTitle>{part.review.title}</SheetTitle>
+      {part.review.description !== '' && (
+        <Small style={styles.description}>{part.review.description}</Small>
+      )}
 
       <View
         style={[
@@ -90,19 +123,16 @@ export default function ReviewTransaction() {
           { backgroundColor: colors.panel, borderColor: colors.line },
         ]}
       >
-        <Row name="Fee payer" first>
-          <Value>
-            {session.address ? shortAddress(session.address) : 'Your wallet'}
-          </Value>
-        </Row>
-        <Row name="Route">
-          <Value>{part.route}</Value>
-        </Row>
-        <Row name="Network fee">
-          <Value>{`${part.feeSol} SOL`}</Value>
-        </Row>
-        <Row name="Network">
-          <Value>{part.network}</Value>
+        {part.review.fields.map((field, index) => (
+          <Row key={field.label} name={field.label} first={index === 0}>
+            <Value>{field.value}</Value>
+          </Row>
+        ))}
+        <Row
+          name="Signs and pays the fee"
+          first={part.review.fields.length === 0}
+        >
+          <Value>{shortAddress(part.wallet)}</Value>
         </Row>
         <Row name="Expires">
           <Text
@@ -111,54 +141,55 @@ export default function ReviewTransaction() {
               {
                 color: expired
                   ? colors.bad
-                  : left <= 15
+                  : left < 60_000
                     ? colors.warn
                     : colors.text,
               },
             ]}
           >
-            {expired ? 'Expired' : `in ${left}s`}
+            {remaining(left)}
           </Text>
         </Row>
       </View>
 
-      {expired ? (
+      {wrongWallet && (
         <Small tone="bad" style={styles.note}>
-          This transaction expired before it was signed. Ask your agent to build
-          it again.
+          {`This was prepared for ${shortAddress(part.wallet)}, not the wallet you're signed in with. Ask your agent to prepare it again.`}
         </Small>
-      ) : (
+      )}
+      {problem && (
+        <Small tone="bad" alert style={styles.note}>
+          {problem}
+        </Small>
+      )}
+      {!problem && !wrongWallet && (
         <Small style={styles.note}>
-          Signing sends it to Solana from your wallet. It can&apos;t be undone.
+          {`Signing opens ${signerName}. LanaTools checks it's this exact transaction, then sends it.`}
         </Small>
       )}
 
-      {session.status === 'signedIn' ? (
-        <Button
-          primary
-          size="lg"
-          label={signing ? 'Signing…' : 'Sign and send'}
-          disabled={expired || signing}
-          onPress={() => void sign()}
-          style={styles.primary}
-        />
-      ) : (
-        <Button
-          primary
-          size="lg"
-          label="Connect wallet to sign"
-          onPress={() => router.replace('/sign-in')}
-          style={styles.primary}
-        />
-      )}
+      <Button
+        primary
+        size="lg"
+        label={
+          signing
+            ? 'Signing…'
+            : `${action} with ${signer?.kind === 'wallet' ? 'wallet app' : 'LanaTools wallet'}`
+        }
+        leading={
+          signing ? (
+            <ActivityIndicator size="small" color={colors.onAccent} />
+          ) : undefined
+        }
+        disabled={signing || expired || wrongWallet}
+        onPress={() => void sign()}
+        style={styles.primary}
+      />
       <Button
         size="lg"
         label="Decline"
         disabled={signing}
-        onPress={() => {
-          store.settleTransaction(messageId, part.id, 'declined')
-          router.back()
-        }}
+        onPress={() => settle({ state: 'declined' })}
         style={styles.secondary}
       />
     </SheetScreen>
@@ -166,27 +197,11 @@ export default function ReviewTransaction() {
 }
 
 const styles = StyleSheet.create({
-  amounts: {
-    flexDirection: 'row',
-    marginTop: 18,
-    borderWidth: 1,
-    borderRadius: radius.card,
-    paddingVertical: 14,
-  },
-  amount: { flex: 1, gap: 6, paddingHorizontal: 14 },
-  split: { width: 1 },
-  figure: {
-    fontFamily: fonts.mono,
-    fontWeight: '600',
-    fontSize: 24,
-    letterSpacing: 24 * -0.04,
-    fontVariant: ['tabular-nums'],
-  },
-  unit: { fontWeight: '500', fontSize: 13, letterSpacing: 0 },
+  description: { marginTop: 6 },
   facts: {
-    marginTop: 12,
+    marginTop: 16,
     borderWidth: 1,
-    borderRadius: radius.card,
+    borderRadius: radius.frame,
     overflow: 'hidden',
   },
   expiry: {

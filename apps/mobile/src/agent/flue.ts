@@ -1,4 +1,10 @@
-import type { Message, Part, Provider, ToolPart } from './types'
+import type {
+  Message,
+  Part,
+  Provider,
+  ToolPart,
+  TransactionPart,
+} from './types'
 import type {
   AgentStatus,
   FlueConversationMessage,
@@ -52,6 +58,86 @@ export function summarize(input: unknown) {
     .join(' · ')
 }
 
+/** A tool result's JSON: the structured content, or the whole text. */
+function resultJson(output: unknown): unknown {
+  if (typeof output !== 'string') return output
+  const marker = output.indexOf('Structured content:')
+  const text = marker === -1 ? output : output.slice(marker + 19)
+  const start = text.indexOf('{')
+  if (start === -1) return null
+  try {
+    return JSON.parse(text.slice(start))
+  } catch {
+    return null
+  }
+}
+
+type TransactionResult = {
+  id?: unknown
+  tool?: unknown
+  delivery?: unknown
+  status?: unknown
+  expiresAt?: unknown
+  review?: {
+    title?: unknown
+    description?: unknown
+    actionLabel?: unknown
+    fields?: { label?: unknown; value?: unknown }[]
+  }
+  transaction?: { transaction?: unknown; account?: unknown }
+}
+
+/**
+ * The transaction a LanaTools tool prepared for this phone to sign: a
+ * "local" result that is ready and carries the unsigned bytes. Anything
+ * else (a link, an embedded send, an error) is just a tool call.
+ */
+export function transactionFrom(output: unknown): TransactionPart | null {
+  const result = resultJson(output) as TransactionResult | null
+  if (!result || typeof result !== 'object') return null
+  const { id, tool, review, transaction } = result
+  if (
+    result.delivery !== 'local' ||
+    result.status !== 'ready' ||
+    typeof id !== 'string' ||
+    typeof transaction?.account !== 'string' ||
+    typeof transaction.transaction !== 'string' ||
+    typeof review?.title !== 'string'
+  )
+    return null
+  return {
+    type: 'transaction',
+    id,
+    tool: typeof tool === 'string' ? tool : 'transaction',
+    state: 'awaiting',
+    review: {
+      title: review.title,
+      description:
+        typeof review.description === 'string' ? review.description : '',
+      actionLabel:
+        typeof review.actionLabel === 'string' ? review.actionLabel : 'Sign',
+      fields: (review.fields ?? []).flatMap((field) =>
+        typeof field.label === 'string' && typeof field.value === 'string'
+          ? [{ label: field.label, value: field.value }]
+          : [],
+      ),
+    },
+    wallet: transaction.account,
+    expiresAt:
+      typeof result.expiresAt === 'number'
+        ? result.expiresAt
+        : Date.now() + 15 * 60_000,
+  }
+}
+
+function toParts(part: FlueConversationPart): Part[] {
+  const mapped = toPart(part)
+  if (!mapped) return []
+  if (mapped.type !== 'tool' || mapped.state !== 'done') return [mapped]
+  const transaction = transactionFrom(mapped.output)
+  return transaction ? [mapped, transaction] : [mapped]
+}
+
 function toPart(part: FlueConversationPart): Part | null {
   switch (part.type) {
     case 'text':
@@ -89,7 +175,7 @@ function toMessage(message: FlueConversationMessage): Message {
     id: message.id,
     role: message.role === 'user' ? 'user' : 'assistant',
     createdAt: message.timestamp ? Date.parse(message.timestamp) : Date.now(),
-    parts: message.parts.flatMap((part) => toPart(part) ?? []),
+    parts: message.parts.flatMap(toParts),
   }
 }
 

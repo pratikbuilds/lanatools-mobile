@@ -8,6 +8,7 @@
     "@flue/sdk": "^2.2.2",
     "@privy-io/expo": "^0.76.1",
     "@privy-io/expo-native-extensions": "^0.0.12",
+    "@solana/kit": "8.4.0",
     "@wallet-ui/react-native-kit": "^4.4.0",
     "buffer": "^6.0.3",
     "expo": "~57.0.27",

@@ -27,6 +27,8 @@ export type WalletState =
 
 export type LinkedLoginAccount = {
   type: string
+  address?: string
+  chain_type?: string
   latest_verified_at?: number | null
   verified_at?: number
   wallet_client_type?: string | null
@@ -46,6 +48,24 @@ export function signInMethodFrom(accounts: LinkedLoginAccount[]): SignInMethod {
     if (!best || at > best.at) best = { method, at }
   }
   return best?.method ?? 'google'
+}
+
+/**
+ * The Solana wallet app the user signed in with, most recent first: the
+ * wallet that signs their transactions over Mobile Wallet Adapter. Null
+ * for a Google user, whose embedded wallet signs instead.
+ */
+export function externalWalletFrom(
+  accounts: LinkedLoginAccount[],
+): string | null {
+  let best: { address: string; at: number } | null = null
+  for (const account of accounts) {
+    if (methodOf(account) !== 'wallet' || !account.address) continue
+    if (account.chain_type && account.chain_type !== 'solana') continue
+    const at = account.latest_verified_at ?? account.verified_at ?? 0
+    if (!best || at > best.at) best = { address: account.address, at }
+  }
+  return best?.address ?? null
 }
 
 function methodOf(account: LinkedLoginAccount): SignInMethod | undefined {

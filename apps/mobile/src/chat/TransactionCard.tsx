@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Linking, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { Button } from '../components/Button'
 import { StatusDot } from '../components/StatusDot'
@@ -7,11 +7,26 @@ import { Label, Small } from '../components/text'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { TransactionPart } from '../agent/types'
+import type { DotState } from '../components/StatusDot'
+
+const STATUS: Record<
+  TransactionPart['state'],
+  { dot: DotState; text: string }
+> = {
+  awaiting: { dot: 'warn', text: 'Needs your signature' },
+  sent: { dot: 'live', text: 'Signed and sent' },
+  declined: { dot: 'idle', text: 'Declined' },
+  failed: { dot: 'bad', text: 'Not sent' },
+}
+
+/** How many of LanaTools' review fields the card shows; the sheet has all. */
+const SHOWN = 4
 
 /**
- * A transaction the agent prepared and cannot send: the dashboard's hero
- * frame, dashed and hatched, so it is the one focal point in the thread.
- * Signing happens in a sheet that shows what the app decoded.
+ * A transaction LanaTools prepared for this phone to sign: the dashboard's
+ * hero frame, dashed and hatched, so it is the one focal point in the
+ * thread. It reads LanaTools' own review of the transaction; signing
+ * happens in a sheet.
  */
 export function TransactionCard({
   part,
@@ -21,7 +36,8 @@ export function TransactionCard({
   messageId: string
 }) {
   const { colors } = useTheme()
-  const awaiting = part.state === 'awaiting'
+  const status = STATUS[part.state]
+  const fields = part.review.fields.slice(0, SHOWN)
   return (
     <View
       style={[
@@ -37,160 +53,108 @@ export function TransactionCard({
         ]}
       >
         <View style={styles.status}>
-          <StatusDot
-            state={
-              awaiting ? 'warn' : part.state === 'signed' ? 'live' : 'idle'
-            }
-          />
-          <Label>
-            {awaiting
-              ? 'Needs your signature'
-              : part.state === 'signed'
-                ? 'Signed and sent'
-                : 'Declined'}
-          </Label>
+          <StatusDot state={status.dot} />
+          <Label>{status.text}</Label>
         </View>
         <Text
           style={[styles.title, { color: colors.text }]}
           maxFontSizeMultiplier={1.3}
         >
-          {part.title}
+          {part.review.title}
         </Text>
-
-        <View style={styles.amounts}>
-          <Amount
-            label="You pay"
-            amount={part.pay.amount}
-            token={part.pay.token}
-          />
-          <Text style={[styles.arrow, { color: colors.text3 }]}>→</Text>
-          <Amount
-            label="You receive"
-            amount={`≈${part.receive.amount}`}
-            token={part.receive.token}
-          />
-        </View>
-
-        <View style={[styles.facts, { borderTopColor: colors.line }]}>
-          <Fact label="Route" value={part.route} />
-          <Fact label="Network fee" value={`${part.feeSol} SOL`} />
-          <Fact label="Network" value={part.network} />
-        </View>
-
-        {awaiting ? (
-          <View style={styles.actions}>
-            <Button
-              primary
-              size="lg"
-              label="Review and sign"
-              onPress={() =>
-                router.push({
-                  pathname: '/transaction',
-                  params: { messageId, partId: part.id },
-                })
-              }
-              style={styles.primary}
-            />
-          </View>
-        ) : part.state === 'signed' ? (
-          <Small style={styles.after}>
-            Signed on this phone. Signature {part.signature}
-          </Small>
-        ) : (
-          <Small style={styles.after}>Nothing was signed or sent.</Small>
+        {part.review.description !== '' && (
+          <Small style={styles.description}>{part.review.description}</Small>
         )}
+
+        {fields.length > 0 && (
+          <View style={[styles.fields, { borderTopColor: colors.line }]}>
+            {fields.map((field) => (
+              <View key={field.label} style={styles.field}>
+                <Text
+                  style={[styles.fieldLabel, { color: colors.text3 }]}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  {field.label}
+                </Text>
+                <Text
+                  style={[styles.fieldValue, { color: colors.text }]}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  {field.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {part.state === 'awaiting' ? (
+          <Button
+            primary
+            size="lg"
+            label={`Review and ${part.review.actionLabel.toLowerCase()}`}
+            onPress={() =>
+              router.push({
+                pathname: '/transaction',
+                params: { messageId, partId: part.id },
+              })
+            }
+            style={styles.action}
+          />
+        ) : part.state === 'sent' && part.signature ? (
+          <Button
+            size="lg"
+            label="View on Solscan"
+            trailing="↗"
+            onPress={() =>
+              void Linking.openURL(`https://solscan.io/tx/${part.signature}`)
+            }
+            style={styles.action}
+          />
+        ) : part.state === 'failed' && part.error ? (
+          <Small tone="bad" style={styles.note}>
+            {part.error}
+          </Small>
+        ) : null}
       </View>
-    </View>
-  )
-}
-
-function Amount({
-  label,
-  amount,
-  token,
-}: {
-  label: string
-  amount: string
-  token: string
-}) {
-  const { colors } = useTheme()
-  return (
-    <View style={styles.amount}>
-      <Label>{label}</Label>
-      <Text
-        style={[styles.figure, { color: colors.text }]}
-        maxFontSizeMultiplier={1.2}
-        numberOfLines={1}
-      >
-        {amount}
-        <Text style={[styles.unit, { color: colors.text3 }]}> {token}</Text>
-      </Text>
-    </View>
-  )
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  const { colors } = useTheme()
-  return (
-    <View style={styles.fact}>
-      <Label>{label}</Label>
-      <Text
-        style={[styles.factValue, { color: colors.text }]}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   frame: {
-    padding: 7,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderRadius: radius.frame,
+    padding: 8,
+    marginBottom: 14,
     overflow: 'hidden',
-    marginBottom: 12,
   },
-  inset: {
-    borderWidth: 1,
-    borderRadius: radius.inset,
-    padding: 16,
-  },
+  inset: { borderWidth: 1, borderRadius: radius.card, padding: 16 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: {
     marginTop: 8,
     fontFamily: fonts.mono,
     fontWeight: '600',
-    fontSize: 18,
-    letterSpacing: 18 * -0.03,
+    fontSize: 19,
+    letterSpacing: 19 * -0.03,
   },
-  amounts: {
+  description: { marginTop: 6 },
+  fields: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, gap: 8 },
+  field: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 12,
-    marginTop: 16,
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 16,
   },
-  amount: { flex: 1, gap: 4 },
-  arrow: { fontFamily: fonts.mono, fontSize: 16, paddingBottom: 4 },
-  figure: {
+  fieldLabel: { fontFamily: fonts.sans, fontSize: 13.5 },
+  fieldValue: {
+    flexShrink: 1,
+    textAlign: 'right',
     fontFamily: fonts.mono,
-    fontWeight: '600',
-    fontSize: 22,
-    letterSpacing: 22 * -0.04,
+    fontWeight: '500',
+    fontSize: 13.5,
     fontVariant: ['tabular-nums'],
   },
-  unit: { fontWeight: '500', fontSize: 13, letterSpacing: 0 },
-  facts: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, gap: 10 },
-  fact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  factValue: { flexShrink: 1, fontFamily: fonts.mono, fontSize: 12.5 },
-  actions: { marginTop: 16 },
-  primary: { alignSelf: 'stretch' },
-  after: { marginTop: 14 },
+  action: { marginTop: 16 },
+  note: { marginTop: 12 },
 })

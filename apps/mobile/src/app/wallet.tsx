@@ -26,7 +26,9 @@ export default function Wallet() {
   const session = useSession()
   const { balances, loading, error, refresh } = useBalances()
   const [copied, setCopied] = useState(false)
-  const address = session.address
+  const address = session.signer?.address ?? session.address
+  const kind =
+    session.signer?.kind === 'wallet' ? 'Your wallet app' : 'LanaTools wallet'
 
   if (!address)
     return (
@@ -38,7 +40,7 @@ export default function Wallet() {
 
   return (
     <SheetScreen context="wallet">
-      <Label>LanaTools wallet · Solana mainnet</Label>
+      <Label>{`${kind} · Solana mainnet`}</Label>
       <SheetTitle>Your wallet</SheetTitle>
 
       <View

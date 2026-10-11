@@ -34,20 +34,34 @@ export type ToolPart = {
   costUsd?: number
 }
 
-/** An unsigned transaction a tool prepared, waiting for the user. */
+/** What LanaTools says a transaction does, in its own words. */
+export type TransactionReview = {
+  title: string
+  description: string
+  /** The button's word for it: "Swap", "Send", "Place order". */
+  actionLabel: string
+  fields: { label: string; value: string }[]
+}
+
+/**
+ * An unsigned transaction a LanaTools tool prepared for the user's wallet
+ * ("local" delivery). Nothing moves until the user signs it on this phone;
+ * the app then sends it through LanaTools and tells the agent.
+ */
 export type TransactionPart = {
   type: 'transaction'
+  /** LanaTools' request id, for get_transaction_status and send_transaction. */
   id: string
-  state: 'awaiting' | 'signed' | 'declined'
-  title: string
-  network: 'Solana mainnet'
-  pay: { amount: string; token: string }
-  receive: { amount: string; token: string }
-  feeSol: string
-  route: string
-  /** Seconds left before the blockhash expires, when it was prepared. */
-  expiresInS: number
+  /** The tool that prepared it: `jupiter_swap`, `phoenix_market_order`. */
+  tool: string
+  state: 'awaiting' | 'sent' | 'declined' | 'failed'
+  review: TransactionReview
+  /** The wallet that signs and pays the fee. */
+  wallet: string
+  /** Epoch ms after which LanaTools will not send it. */
+  expiresAt: number
   signature?: string
+  error?: string
 }
 
 export type Part = TextPart | ReasoningPart | ToolPart | TransactionPart

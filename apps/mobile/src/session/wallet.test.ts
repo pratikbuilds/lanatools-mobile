@@ -6,6 +6,7 @@ import {
   signInMethodFrom,
   solanaStatusFrom,
   walletStateFrom,
+  externalWalletFrom,
 } from './wallet.ts'
 
 const user = {
@@ -136,4 +137,41 @@ test('a phone without an MWA wallet is recognised', () => {
   assert.equal(isNoWallet(error), true)
   assert.equal(isUserCancel(error), false)
   assert.equal(isNoWallet(new Error('Network request failed')), false)
+})
+
+test('the wallet a user signed in with signs their transactions', () => {
+  assert.equal(
+    externalWalletFrom([
+      { type: 'google_oauth', verified_at: 3 },
+      {
+        type: 'wallet',
+        address: 'Embedded1',
+        wallet_client_type: 'privy',
+        verified_at: 4,
+      },
+      {
+        type: 'wallet',
+        address: 'Phantom1',
+        chain_type: 'solana',
+        verified_at: 1,
+      },
+      {
+        type: 'wallet',
+        address: 'Solflare1',
+        chain_type: 'solana',
+        latest_verified_at: 2,
+      },
+    ]),
+    'Solflare1',
+  )
+})
+
+test('a Google user has no external wallet to sign with', () => {
+  assert.equal(
+    externalWalletFrom([
+      { type: 'google_oauth', verified_at: 1 },
+      { type: 'wallet', address: 'Embedded1', connector_type: 'embedded' },
+    ]),
+    null,
+  )
 })

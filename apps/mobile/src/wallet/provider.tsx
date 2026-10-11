@@ -34,7 +34,12 @@ const BalancesContext = createContext<WalletBalances | null>(null)
 export function BalancesProvider({ children }: { children: ReactNode }) {
   const session = useSession()
   const { working } = useConversations()
-  const address = session.status === 'signedIn' ? session.address : null
+  // The wallet that signs and holds the funds: the wallet app for a wallet
+  // sign-in, the embedded wallet for Google.
+  const address =
+    session.status === 'signedIn'
+      ? (session.signer?.address ?? session.address)
+      : null
   const [read, setRead] = useState<{
     address: string
     balances: Balances | null

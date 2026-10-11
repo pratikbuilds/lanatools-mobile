@@ -8,6 +8,11 @@ export const NEW = 'new'
 
 export type ConversationSummary = Omit<Conversation, 'messages'>
 
+export type TransactionOutcome =
+  | { state: 'sent'; signature: string }
+  | { state: 'declined' }
+  | { state: 'failed'; error: string }
+
 export type Store = {
   conversations: ConversationSummary[]
   active: Conversation | null
@@ -19,11 +24,14 @@ export type Store = {
   stop: () => void
   rename: (id: string, title: string) => void
   remove: (id: string) => void
-  /** Settles a prepared transaction after the user signs or declines it. */
+  /**
+   * Records what became of a prepared transaction, and tells the agent:
+   * sent with its signature, declined, or failed with the reason.
+   */
   settleTransaction: (
     messageId: string,
     partId: string,
-    state: 'signed' | 'declined',
+    outcome: TransactionOutcome,
   ) => void
 }
 

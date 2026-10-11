@@ -165,7 +165,7 @@ export function MockConversationsProvider({
         setConversations((all) => all.filter((c) => c.id !== id))
         if (id === activeId) setActiveId(NEW)
       },
-      settleTransaction: (messageId, partId, state) => {
+      settleTransaction: (messageId, partId, outcome) => {
         const cid = conversations.find((c) =>
           c.messages.some((m) => m.id === messageId),
         )?.id
@@ -174,13 +174,7 @@ export function MockConversationsProvider({
           ...m,
           parts: m.parts.map((p) =>
             p.type === 'transaction' && p.id === partId
-              ? {
-                  ...p,
-                  state,
-                  ...(state === 'signed'
-                    ? { signature: '4vJ9…mock…Qe2X' }
-                    : {}),
-                }
+              ? { ...p, ...outcome }
               : p,
           ),
         }))

@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { providerOf, summarize, toThread } from './flue.ts'
+import { providerOf, summarize, toThread, transactionFrom } from './flue.ts'
 import type { FlueConversationMessage } from '@flue/react'
 
 const user = (id: string, text: string): FlueConversationMessage => ({
@@ -160,5 +160,52 @@ describe('summarize', () => {
       'inputMint So11…1112 · amount 5',
     )
     assert.equal(summarize(undefined), '')
+  })
+})
+
+describe('transactionFrom', () => {
+  const result = {
+    id: 'req-1',
+    tool: 'jupiter_swap',
+    network: 'mainnet',
+    delivery: 'local',
+    status: 'ready',
+    review: {
+      title: 'Swap SOL for USDC',
+      description: 'Swap 0.01 SOL through Jupiter.',
+      actionLabel: 'Swap',
+      fields: [{ label: 'You pay', value: '0.01 SOL' }],
+    },
+    transaction: { transaction: 'AQAB', account: 'Wallet111' },
+    signature: null,
+    receipt: null,
+    expiresAt: 1_900_000_000_000,
+  }
+
+  it('reads a local transaction ready to sign', () => {
+    const part = transactionFrom(
+      `Structured content:\n${JSON.stringify(result)}`,
+    )
+    assert.deepEqual(part, {
+      type: 'transaction',
+      id: 'req-1',
+      tool: 'jupiter_swap',
+      state: 'awaiting',
+      review: result.review,
+      wallet: 'Wallet111',
+      expiresAt: 1_900_000_000_000,
+    })
+  })
+
+  it('reads a bare JSON result too', () => {
+    assert.equal(transactionFrom(JSON.stringify(result))?.id, 'req-1')
+  })
+
+  it('ignores links, embedded sends and errors', () => {
+    const link = { ...result, delivery: 'link', transaction: undefined }
+    assert.equal(transactionFrom(JSON.stringify(link)), null)
+    const sent = { ...result, status: 'confirmed' }
+    assert.equal(transactionFrom(JSON.stringify(sent)), null)
+    assert.equal(transactionFrom('Tool error: insufficient_scope'), null)
   })
 })
