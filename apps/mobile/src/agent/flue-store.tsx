@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFlueAgent } from '@flue/react'
 import { createFlueClient } from '@flue/sdk'
+import { useLanaTools } from '../lanatools/link'
 import { useSession } from '../session/session'
+import { AGENT_URL } from './config'
 import { NEW, StoreContext, titleFrom } from './context'
 import { CANT_START, toThread } from './flue'
 import type { ConversationSummary, Store } from './context'
@@ -13,9 +15,9 @@ import type { ReactNode } from 'react'
 // only the list of conversations, for this session.
 //
 // Every request carries the user's Privy access token. The agent issues
-// conversation ids tied to that user and refuses anyone else's.
-
-const AGENT_URL = process.env.EXPO_PUBLIC_AGENT_URL ?? 'http://localhost:8787'
+// conversation ids tied to that user and refuses anyone else's. Requests
+// also hand over the user's LanaTools access token, refreshed first if it
+// is about to expire, for the agent's tool calls.
 
 type Headers = () => Promise<Record<string, string>>
 
@@ -24,7 +26,10 @@ async function startConversation(headers: Headers) {
     method: 'POST',
     headers: await headers(),
   })
-  if (!response.ok) throw new Error(`The agent answered ${response.status}`)
+  if (!response.ok)
+    throw new Error(
+      `The agent answered ${response.status}: ${await response.text()}`,
+    )
   const { id } = (await response.json()) as { id: string }
   return id
 }
@@ -65,12 +70,20 @@ export function FlueConversationsProvider({
   // Called on every request and reconnect, so a refreshed token is always
   // the one sent.
   const { getAccessToken } = session
+  const { accessToken } = useLanaTools()
   const headers = useCallback<Headers>(async () => {
-    const token = await getAccessToken()
+    const [token, lanatools] = await Promise.all([
+      getAccessToken(),
+      accessToken(),
+    ])
     const headers: Record<string, string> = {}
     if (token) headers.authorization = `Bearer ${token}`
+    if (lanatools) {
+      headers['x-lanatools-token'] = lanatools.token
+      headers['x-lanatools-token-expires'] = String(lanatools.expiresAt)
+    }
     return headers
-  }, [getAccessToken])
+  }, [accessToken, getAccessToken])
 
   const client = useMemo(
     () =>
@@ -123,7 +136,9 @@ export function FlueConversationsProvider({
         add(id, text)
         first.current = text
         setActiveId(id)
-      } catch {
+      } catch (error) {
+        // The thread shows a short message; the cause goes to the logs.
+        console.warn('Could not start a conversation', error)
         const id = `unstarted-${Date.now()}`
         add(id, text)
         setFailed((all) => ({ ...all, [id]: text }))

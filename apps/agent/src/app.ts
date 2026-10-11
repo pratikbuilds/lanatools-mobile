@@ -2,6 +2,7 @@ import { createAgentRouter } from '@flue/runtime/routing'
 import { Lana } from './agents/lana.ts'
 import { privyVerifier } from './auth.ts'
 import { routes } from './routes.ts'
+import { tokens } from './store.ts'
 import type { Verify } from './auth.ts'
 
 // Privy's keys are fetched once per Worker isolate and cached by jose.
@@ -13,4 +14,4 @@ function verify() {
   return verifier
 }
 
-export default routes(verify, createAgentRouter(Lana))
+export default routes(verify, tokens, createAgentRouter(Lana))

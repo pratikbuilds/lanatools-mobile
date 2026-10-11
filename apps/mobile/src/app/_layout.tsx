@@ -8,10 +8,12 @@ import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { useReducedMotion } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ConversationsProvider } from '../agent/store'
+import { LanaToolsProvider } from '../lanatools/link'
 import { DraftProvider } from '../chat/draft'
 import { OnboardingProvider, useOnboarding } from '../onboarding/seen'
 import { SessionProvider } from '../session/session'
 import { ThemeProvider, useTheme } from '../theme/theme'
+import { BalancesProvider } from '../wallet/provider'
 import { radius } from '../theme/tokens'
 
 // Fonts are embedded at build time, so the first frame is already in the
@@ -55,8 +57,9 @@ function Screens() {
         {/* Short interruptions, so the platform's own bottom sheet: it drags,
           dims, and closes on back for free. */}
         <Stack.Screen name="sign-in" options={sheet} />
-        <Stack.Screen name="tools" options={sheet} />
+        <Stack.Screen name="tools" />
         <Stack.Screen name="transaction" options={sheet} />
+        <Stack.Screen name="wallet" options={sheet} />
       </Stack>
     </>
   )
@@ -70,11 +73,15 @@ export default function RootLayout() {
           <ThemeProvider>
             <OnboardingProvider>
               <SessionProvider>
-                <ConversationsProvider>
-                  <DraftProvider>
-                    <Screens />
-                  </DraftProvider>
-                </ConversationsProvider>
+                <LanaToolsProvider>
+                  <ConversationsProvider>
+                    <BalancesProvider>
+                      <DraftProvider>
+                        <Screens />
+                      </DraftProvider>
+                    </BalancesProvider>
+                  </ConversationsProvider>
+                </LanaToolsProvider>
               </SessionProvider>
             </OnboardingProvider>
           </ThemeProvider>

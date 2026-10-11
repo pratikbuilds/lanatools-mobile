@@ -11,16 +11,12 @@ import { useConversations } from '../agent/store'
 import { useDraft } from '../chat/draft'
 import { AppBar, BarIcon, BarTitle } from '../components/AppBar'
 import { Button } from '../components/Button'
-import { Row, Section, Ticks, Value } from '../components/Ledger'
+import { Row, Section, Value } from '../components/Ledger'
 import { PressableScale } from '../components/PressableScale'
 import { StatusDot } from '../components/StatusDot'
 import { Mono } from '../components/text'
-import {
-  MOCK_AGENT,
-  methodLabel,
-  shortAddress,
-  useSession,
-} from '../session/session'
+import { methodLabel, shortAddress, useSession } from '../session/session'
+import { useLanaTools } from '../lanatools/link'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import type { Preference } from '../theme/theme'
@@ -120,7 +116,9 @@ export default function Settings() {
   const draft = useDraft()
   const store = useConversations()
   const signedIn = session.status === 'signedIn'
-  const linked = MOCK_AGENT && signedIn
+  const lanatools = useLanaTools()
+  const linked = signedIn && lanatools.status === 'linked'
+  const revoked = signedIn && lanatools.status === 'revoked'
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -170,23 +168,29 @@ export default function Settings() {
         <Section label="LanaTools">
           <Row name="Status" first>
             <View style={styles.status}>
-              <StatusDot state={linked ? 'live' : 'idle'} />
-              <Value>{linked ? 'Connected' : 'Not connected'}</Value>
+              <StatusDot state={linked ? 'live' : revoked ? 'warn' : 'idle'} />
+              <Value>
+                {linked ? 'Connected' : revoked ? 'Revoked' : 'Not connected'}
+              </Value>
             </View>
           </Row>
           <Row name="Client" detail="How lanatools.sh lists this app">
             <Value>LanaTools Mobile</Value>
           </Row>
           {linked && (
-            <View style={[styles.limit, { borderTopColor: colors.line }]}>
-              <View style={styles.limitHead}>
-                <Text style={[styles.limitName, { color: colors.text }]}>
-                  Spending limit
-                </Text>
-                <Value>$0.03 of $5.00</Value>
-              </View>
-              <Ticks spent={0.03} limit={5} />
-            </View>
+            <Row name="Tools" detail="What your agent can use">
+              <PressableScale
+                onPress={() => router.push('/tools')}
+                accessibilityRole="button"
+                hitSlop={8}
+              >
+                <Value>
+                  {lanatools.grant?.limitUsd
+                    ? `Pay up to $${lanatools.grant.limitUsd}`
+                    : `${lanatools.grant?.scopes.length ?? 0} families`}
+                </Value>
+              </PressableScale>
+            </Row>
           )}
           <PressableScale
             scale={false}

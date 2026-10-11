@@ -1,21 +1,19 @@
 import { useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, TextInput } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { ArrowUpIcon } from 'phosphor-react-native/src/icons/ArrowUp'
 import { StopIcon } from 'phosphor-react-native/src/icons/Stop'
 import Animated from 'react-native-reanimated'
-import { LineIcon } from '../brand/SideField'
 import { PressableScale } from '../components/PressableScale'
-import { StatusDot } from '../components/StatusDot'
 import { CSS_EASE_OUT, STATE_MS } from '../theme/motion'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 
 /**
- * The message field: the words on top, and a toolbar under them with the
- * LanaTools chip on the left and Send on the right. Send is the one filled
- * control on the screen, and only once there is something to send; while
- * the agent works it becomes Stop.
+ * The message field: one round row, the words and Send. Send is the one
+ * filled control on the screen, and only once there is something to send;
+ * while the agent works it becomes Stop. The field grows with the words
+ * and Send stays on the last line.
  */
 export function Composer({
   value,
@@ -23,17 +21,12 @@ export function Composer({
   onSend,
   working = false,
   onStop,
-  onTools,
-  toolsLive = false,
 }: {
   value: string
   onChange: (text: string) => void
   onSend: () => void
   working?: boolean
   onStop?: () => void
-  onTools?: () => void
-  /** LanaTools answers this chat's tool calls. */
-  toolsLive?: boolean
 }) {
   const { colors, name } = useTheme()
   const [focused, setFocused] = useState(false)
@@ -82,55 +75,28 @@ export function Composer({
         accessibilityLabel="Message"
         style={[styles.input, { color: colors.text }]}
       />
-      <View style={styles.toolbar}>
-        {onTools ? (
-          <PressableScale
-            onPress={onTools}
-            accessibilityRole="button"
-            accessibilityLabel={`LanaTools, ${toolsLive ? 'connected' : 'not connected'}`}
-            accessibilityHint="Shows the tools your agent can use"
-            hitSlop={6}
-            style={[styles.chip, { borderColor: colors.line }]}
-            pressedStyle={{ backgroundColor: colors.panel2 }}
-          >
-            {toolsLive ? (
-              <StatusDot state="live" />
-            ) : (
-              <LineIcon name="nodes" size={14} color={colors.text3} />
-            )}
-            <Text
-              style={[styles.chipText, { color: colors.text2 }]}
-              maxFontSizeMultiplier={1.2}
-            >
-              LanaTools
-            </Text>
-          </PressableScale>
+      <PressableScale
+        onPress={press}
+        disabled={!filled}
+        accessibilityRole="button"
+        accessibilityLabel={working ? 'Stop' : 'Send'}
+        accessibilityState={{ disabled: !filled }}
+        hitSlop={8}
+        style={[
+          styles.send,
+          { backgroundColor: filled ? colors.accent : colors.panel2 },
+        ]}
+      >
+        {working ? (
+          <StopIcon size={14} weight="fill" color={colors.onAccent} />
         ) : (
-          <View />
+          <ArrowUpIcon
+            size={18}
+            weight="bold"
+            color={ready ? colors.onAccent : colors.text3}
+          />
         )}
-        <PressableScale
-          onPress={press}
-          disabled={!filled}
-          accessibilityRole="button"
-          accessibilityLabel={working ? 'Stop' : 'Send'}
-          accessibilityState={{ disabled: !filled }}
-          hitSlop={8}
-          style={[
-            styles.send,
-            { backgroundColor: filled ? colors.accent : colors.panel2 },
-          ]}
-        >
-          {working ? (
-            <StopIcon size={14} weight="fill" color={colors.onAccent} />
-          ) : (
-            <ArrowUpIcon
-              size={18}
-              weight="bold"
-              color={ready ? colors.onAccent : colors.text3}
-            />
-          )}
-        </PressableScale>
-      </View>
+      </PressableScale>
     </Animated.View>
   )
 }
@@ -140,41 +106,29 @@ const LIFT = '0 6px 24px -8px rgba(10, 31, 110, 0.18)'
 
 const styles = StyleSheet.create({
   field: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     borderWidth: 1,
     borderRadius: radius.composer,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingLeft: 8,
+    paddingRight: 6,
   },
   input: {
-    minHeight: 48,
+    flex: 1,
+    minHeight: 52,
     maxHeight: 148,
-    paddingTop: 14,
-    paddingBottom: 6,
+    paddingTop: 15,
+    paddingBottom: 15,
     paddingHorizontal: 10,
     fontFamily: fonts.sans,
     fontSize: 16,
     lineHeight: 22,
     textAlignVertical: 'top',
   },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 34,
-    paddingLeft: 10,
-    paddingRight: 12,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-  },
-  chipText: { fontFamily: fonts.mono, fontWeight: '500', fontSize: 12.5 },
   send: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
+    marginBottom: 6,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

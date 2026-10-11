@@ -3,7 +3,9 @@ import { test } from 'node:test'
 import { Hono } from 'hono'
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose'
 import { ownerOf, privyVerifier, userHash } from './auth.ts'
-import { routes } from './routes.ts'
+import { EXPIRES_HEADER, TOKEN_HEADER, routes } from './routes.ts'
+import { memoryDb } from './test-db.ts'
+import { tokenStore } from './tokens.ts'
 
 const APP_ID = 'test-app'
 const ALICE = 'did:privy:alice'
@@ -35,14 +37,32 @@ agent.all('/:id', (c) => c.json({ reached: c.req.param('id') }))
 agent.all('/:id/abort', (c) => c.json({ aborted: c.req.param('id') }))
 
 const verifier = privyVerifier(APP_ID, jwks)
-const app = routes(() => verifier, agent)
+const tokens = tokenStore(memoryDb(), Buffer.alloc(32, 1).toString('base64'))
+const app = routes(
+  () => verifier,
+  () => tokens,
+  agent,
+)
 
-function call(path: string, bearer?: string, method = 'POST') {
+function call(
+  path: string,
+  bearer?: string,
+  method = 'POST',
+  extra: Record<string, string> = {},
+) {
   return app.request(path, {
     method,
-    headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
+    headers: {
+      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+      ...extra,
+    },
   })
 }
+
+const handOver = (token: string) => ({
+  [TOKEN_HEADER]: token,
+  [EXPIRES_HEADER]: String(Date.now() + 60 * 60 * 1000),
+})
 
 async function newConversation(sub: string) {
   const response = await call('/conversations', await token(sub))
@@ -97,4 +117,35 @@ test("another user's conversation is forbidden", async () => {
 test('an id without an owner is forbidden', async () => {
   const alice = await token(ALICE)
   assert.equal((await call('/agents/lana/plain-id', alice)).status, 403)
+})
+
+test("a message hands over the user's LanaTools token", async () => {
+  const id = await newConversation(ALICE)
+  const alice = await token(ALICE)
+  await call(`/agents/lana/${id}`, alice, 'POST', handOver('mcp-a'))
+  assert.equal(await tokens.get(await userHash(ALICE)), 'mcp-a')
+})
+
+test('a token from someone without access is not stored', async () => {
+  const id = await newConversation(ALICE)
+  const bob = await token(BOB)
+  await call(`/agents/lana/${id}`, bob, 'POST', handOver('mcp-b'))
+  assert.equal(await tokens.get(await userHash(BOB)), null)
+})
+
+test('a read does not store a token', async () => {
+  const id = await newConversation(ALICE)
+  const alice = await token(ALICE)
+  await tokens.remove(await userHash(ALICE))
+  await call(`/agents/lana/${id}`, alice, 'GET', handOver('mcp-read'))
+  assert.equal(await tokens.get(await userHash(ALICE)), null)
+})
+
+test('disconnecting forgets the token', async () => {
+  const alice = await token(ALICE)
+  await call('/conversations', alice, 'POST', handOver('mcp-a'))
+  assert.equal(await tokens.get(await userHash(ALICE)), 'mcp-a')
+  const response = await call('/lanatools/token', alice, 'DELETE')
+  assert.equal(response.status, 204)
+  assert.equal(await tokens.get(await userHash(ALICE)), null)
 })

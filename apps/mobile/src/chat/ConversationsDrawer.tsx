@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native'
 import { router } from 'expo-router'
+import { CaretRightIcon } from 'phosphor-react-native/src/icons/CaretRight'
 import { GearSixIcon } from 'phosphor-react-native/src/icons/GearSix'
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass'
 import { NotePencilIcon } from 'phosphor-react-native/src/icons/NotePencil'
@@ -18,12 +19,16 @@ import { SolanaMark } from '../brand/marks'
 import { useConversations } from '../agent/store'
 import { useDrawer } from '../components/Drawer'
 import { PressableScale } from '../components/PressableScale'
+import { StatusDot } from '../components/StatusDot'
 import { Label, Mono, Small } from '../components/text'
+import { useLanaTools } from '../lanatools/link'
 import { methodLabel, shortAddress, useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
 import { useDraft } from './draft'
 import type { ConversationSummary } from '../agent/context'
+import type { DotState } from '../components/StatusDot'
+import type { LinkStatus } from '../lanatools/link'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -45,6 +50,7 @@ export function ConversationsDrawer() {
   const drawer = useDrawer()
   const store = useConversations()
   const session = useSession()
+  const lanatools = useLanaTools()
   const draft = useDraft()
   const [query, setQuery] = useState('')
   // Groups are by calendar day; the drawer's mount time is close enough.
@@ -183,6 +189,24 @@ export function ConversationsDrawer() {
           ))}
       </ScrollView>
 
+      {session.status === 'signedIn' && (
+        <PressableScale
+          scale={false}
+          onPress={() => go(() => router.push('/tools'))}
+          accessibilityRole="button"
+          accessibilityLabel={`LanaTools, ${LINK_WORDS[lanatools.status]}`}
+          style={[styles.link, { borderTopColor: colors.line }]}
+          pressedStyle={{ backgroundColor: colors.panel2 }}
+        >
+          <StatusDot state={LINK_DOT[lanatools.status]} />
+          <Mono size={13} weight="600" style={styles.linkName}>
+            LanaTools
+          </Mono>
+          <Small>{LINK_WORDS[lanatools.status]}</Small>
+          <CaretRightIcon size={12} weight="bold" color={colors.text3} />
+        </PressableScale>
+      )}
+
       <View
         style={[
           styles.foot,
@@ -235,6 +259,20 @@ export function ConversationsDrawer() {
       </View>
     </View>
   )
+}
+
+const LINK_WORDS: Record<LinkStatus, string> = {
+  loading: 'Checking…',
+  unlinked: 'Not connected',
+  linked: 'Connected',
+  revoked: 'Revoked',
+}
+
+const LINK_DOT: Record<LinkStatus, DotState> = {
+  loading: 'idle',
+  unlinked: 'idle',
+  linked: 'live',
+  revoked: 'warn',
 }
 
 const styles = StyleSheet.create({
@@ -297,6 +335,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.field,
   },
   rowText: { fontFamily: fonts.sans, fontSize: 15 },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+  },
+  linkName: { flex: 1 },
   foot: {
     flexDirection: 'row',
     alignItems: 'center',

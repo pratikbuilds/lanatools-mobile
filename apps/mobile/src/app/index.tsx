@@ -8,6 +8,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useConversations } from '../agent/store'
 import { Composer } from '../chat/Composer'
+import { ConnectBar } from '../chat/ConnectBar'
 import { ConversationsDrawer } from '../chat/ConversationsDrawer'
 import { useDraft } from '../chat/draft'
 import { EmptyState } from '../chat/EmptyState'
@@ -17,6 +18,7 @@ import { DrawerLayout, useDrawer } from '../components/Drawer'
 import { useOnboarding } from '../onboarding/seen'
 import { useSession } from '../session/session'
 import { useTheme } from '../theme/theme'
+import { WalletChip } from '../wallet/WalletChip'
 
 export default function ChatRoute() {
   const onboarding = useOnboarding()
@@ -82,6 +84,8 @@ function Chat() {
                 onPress={store.newChat}
               />
             )}
+            {/* The wallet, always in view: address and balances. */}
+            {session.status === 'signedIn' && session.address && <WalletChip />}
             {(session.status === 'signedOut' ||
               session.status === 'walletError') && (
               <BarButton
@@ -109,14 +113,13 @@ function Chat() {
           dockStyle,
         ]}
       >
+        <ConnectBar />
         <Composer
           value={draft.text}
           onChange={draft.setText}
           onSend={() => send(draft.text)}
           working={store.working}
           onStop={store.stop}
-          onTools={() => router.push('/tools')}
-          toolsLive={session.status === 'signedIn'}
         />
       </Animated.View>
     </View>

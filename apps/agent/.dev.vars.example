@@ -2,9 +2,6 @@
 # Worker secrets: `npx wrangler secret put ANTHROPIC_API_KEY`.
 ANTHROPIC_API_KEY=
 
-# A LanaTools MCP access token, for development until the app hands each
-# user's own token to the agent (docs/PLAN.md, milestone 4). Leave it empty
-# and the agent runs without LanaTools. `npm run token --workspace apps/agent`
-# fills it in: the first run asks for consent in the browser, later runs
-# refresh it. It lasts an hour; restart the agent after refreshing.
-LANATOOLS_MCP_TOKEN=
+# Encrypts each user's LanaTools access token at rest in D1. Any 32 random
+# bytes, base64: node -e "console.log(crypto.randomBytes(32).toString('base64'))"
+LANATOOLS_TOKEN_KEY=
