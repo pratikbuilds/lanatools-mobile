@@ -7,9 +7,9 @@ import type { ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 /**
- * `.d-btn`: mono, hairline-bordered, on the panel. `primary` fills with the
- * accent (blue by day, paper by night). A press scales it and darkens the
- * border, where the web darkens it on hover.
+ * A pill: mono label, hairline border, on the panel. `primary` fills with
+ * the accent (blue by day, paper by night). A press scales it and darkens
+ * the border, where the web darkens it on hover.
  */
 export function Button({
   label,
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     borderWidth: 1,
-    borderRadius: radius.button,
-    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
   },
   md: { minHeight: 44 },
   lg: { minHeight: 48 },

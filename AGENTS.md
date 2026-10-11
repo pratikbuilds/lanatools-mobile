@@ -17,8 +17,12 @@ its decisions are in [docs/PLAN.md](docs/PLAN.md).
 - **Review every screen against the eight design principles** from Expo's
   "professional design principles" guide before you commit: contrast (one
   focal point), hierarchy, alignment (one 16px edge), proximity, repetition
-  (LanaTools radii: 14 frame, 10 card, 9 button), balance, white space and
-  unity. Critique the emulator screenshot, revise, and look again.
+  (the radii in `theme/tokens.ts`: 14 frame and 10 card for surfaces; chat
+  controls commit to round, with pill buttons and chips, a 24 composer and
+  20 bubbles), balance, white space and unity. Critique the emulator
+  screenshot, revise, and look again.
+- **Tool calls read like Claude or Cursor**: quiet timeline steps in one
+  folding group, not cards.
 - **Motion follows Emil Kowalski's `animate-expo` rules.**
   - Use the constants in `apps/mobile/src/theme/motion.ts`.
   - Animate transform and opacity only, never layout.

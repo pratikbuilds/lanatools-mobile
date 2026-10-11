@@ -6,8 +6,8 @@ import { PressableScale } from './PressableScale'
 import type { ReactNode } from 'react'
 
 /**
- * The top app bar: a leading action, the title, and trailing actions. It
- * sits on the page colour with the dashboard's hairline beneath it.
+ * The top app bar: a leading action, the title, and trailing actions, on
+ * the page colour with nothing under it, so the thread runs up to it.
  */
 export function AppBar({
   title,
@@ -27,7 +27,6 @@ export function AppBar({
         {
           paddingTop: insets.top,
           backgroundColor: colors.bg,
-          borderBottomColor: colors.line,
         },
       ]}
     >
@@ -55,7 +54,7 @@ export function BarTitle({ children }: { children: string }) {
   )
 }
 
-/** A 44dp icon action in the bar. */
+/** A 44dp round icon action in the bar. */
 export function BarIcon({
   icon,
   label,
@@ -80,7 +79,7 @@ export function BarIcon({
   )
 }
 
-/** A compact outlined action for the app bar, such as Connect. */
+/** The bar's one filled action, such as Connect: an accent pill. */
 export function BarButton({
   label,
   onPress,
@@ -99,15 +98,11 @@ export function BarButton({
       accessibilityRole="button"
       {...(accessibilityHint ? { accessibilityHint } : {})}
       hitSlop={6}
-      style={[
-        styles.button,
-        { borderColor: colors.line2, backgroundColor: colors.panel },
-      ]}
-      pressedStyle={{ borderColor: colors.text3 }}
+      style={[styles.button, { backgroundColor: colors.accent }]}
     >
       {leading}
       <Text
-        style={[styles.buttonText, { color: colors.text }]}
+        style={[styles.buttonText, { color: colors.onAccent }]}
         maxFontSizeMultiplier={1.2}
       >
         {label}
@@ -117,7 +112,7 @@ export function BarButton({
 }
 
 const styles = StyleSheet.create({
-  bar: { borderBottomWidth: 1 },
+  bar: {},
   row: {
     height: 56,
     flexDirection: 'row',
@@ -127,10 +122,10 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, paddingHorizontal: 6 },
   titleText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontWeight: '600',
-    fontSize: 15,
-    letterSpacing: 15 * -0.02,
+    fontSize: 17,
+    letterSpacing: 17 * -0.01,
   },
   trailing: {
     flexDirection: 'row',
@@ -143,16 +138,15 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.button,
+    borderRadius: radius.pill,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    height: 38,
+    gap: 6,
+    height: 36,
     paddingHorizontal: 14,
-    borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   buttonText: {
     fontFamily: fonts.mono,

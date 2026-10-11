@@ -86,7 +86,7 @@ function Chat() {
               session.status === 'walletError') && (
               <BarButton
                 label="Connect"
-                leading={<WalletIcon size={16} color={colors.text} />}
+                leading={<WalletIcon size={15} color={colors.onAccent} />}
                 accessibilityHint="Sign in and connect your wallet"
                 onPress={() => {
                   draft.setWaiting(false)
@@ -103,7 +103,11 @@ function Chat() {
         <EmptyState onPick={send} keyboard={keyboard} />
       )}
       <Animated.View
-        style={[styles.dock, { paddingBottom: insets.bottom + 8 }, dockStyle]}
+        style={[
+          styles.dock,
+          { paddingBottom: insets.bottom + 8, backgroundColor: colors.bg },
+          dockStyle,
+        ]}
       >
         <Composer
           value={draft.text}
@@ -112,6 +116,7 @@ function Chat() {
           working={store.working}
           onStop={store.stop}
           onTools={() => router.push('/tools')}
+          toolsLive={session.status === 'signedIn'}
         />
       </Animated.View>
     </View>

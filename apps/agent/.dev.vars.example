@@ -4,5 +4,7 @@ ANTHROPIC_API_KEY=
 
 # A LanaTools MCP access token, for development until the app hands each
 # user's own token to the agent (docs/PLAN.md, milestone 4). Leave it empty
-# and the agent runs without LanaTools.
+# and the agent runs without LanaTools. `npm run token --workspace apps/agent`
+# fills it in: the first run asks for consent in the browser, later runs
+# refresh it. It lasts an hour; restart the agent after refreshing.
 LANATOOLS_MCP_TOKEN=

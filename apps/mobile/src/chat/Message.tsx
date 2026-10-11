@@ -12,15 +12,32 @@ import { Label } from '../components/text'
 import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
 import { fonts, radius } from '../theme/tokens'
+import { Activity } from './Activity'
 import { Markdown } from './Markdown'
-import { Reasoning } from './Reasoning'
-import { ToolCall } from './ToolCall'
 import { TransactionCard } from './TransactionCard'
-import type { Message as MessageType } from '../agent/types'
+import type { Step } from './Activity'
+import type { Message as MessageType, Part } from '../agent/types'
 
 // Messages arrive by fading in; nothing slides, because a thread gains a
 // message many times a day.
 const ARRIVE = FadeIn.duration(200).easing(EASE_OUT)
+
+type Segment =
+  | { kind: 'steps'; steps: Step[]; at: number }
+  | { kind: 'part'; part: Exclude<Part, Step>; at: number }
+
+/** The parts in order, with each run of thinking and tool calls as one. */
+function segment(parts: Part[]): Segment[] {
+  const out: Segment[] = []
+  parts.forEach((part, at) => {
+    const last = out.at(-1)
+    if (part.type === 'reasoning' || part.type === 'tool') {
+      if (last?.kind === 'steps') last.steps.push(part)
+      else out.push({ kind: 'steps', steps: [part], at })
+    } else out.push({ kind: 'part', part, at })
+  })
+  return out
+}
 
 function textOf(message: MessageType) {
   return message.parts
@@ -101,15 +118,22 @@ function CopyButton({ text }: { text: string }) {
 /** The agent's turn: its thinking, tool calls, words and transactions. */
 function AssistantMessage({ message }: { message: MessageType }) {
   const text = textOf(message)
+  const segments = segment(message.parts)
   return (
     <Animated.View entering={ARRIVE} style={styles.assistant}>
       {message.parts.length === 0 && message.streaming && <Working />}
-      {message.parts.map((part, index) => {
+      {segments.map((seg, index) => {
+        const last = index === segments.length - 1
+        if (seg.kind === 'steps')
+          return (
+            <Activity
+              key={`steps-${seg.at}`}
+              steps={seg.steps}
+              live={message.streaming === true && last}
+            />
+          )
+        const part = seg.part
         switch (part.type) {
-          case 'reasoning':
-            return <Reasoning key={index} part={part} />
-          case 'tool':
-            return <ToolCall key={part.id} part={part} />
           case 'transaction':
             return (
               <TransactionCard
@@ -121,10 +145,8 @@ function AssistantMessage({ message }: { message: MessageType }) {
           case 'text':
             return part.text ? (
               <Markdown
-                key={index}
-                streaming={
-                  message.streaming && index === message.parts.length - 1
-                }
+                key={seg.at}
+                streaming={message.streaming === true && last}
               >
                 {part.text}
               </Markdown>
@@ -159,11 +181,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     maxWidth: '84%',
     marginTop: 8,
-    marginBottom: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius.frame,
-    borderBottomRightRadius: 4,
+    marginBottom: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: radius.bubble,
   },
   userText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   assistant: { marginBottom: 16 },

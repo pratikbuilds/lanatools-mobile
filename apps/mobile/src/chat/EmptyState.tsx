@@ -12,7 +12,6 @@ import { LineIcon } from '../brand/SideField'
 import type { IconName } from '../brand/SideField'
 import { Clear, FieldArea } from '../components/FieldArea'
 import { PressableScale } from '../components/PressableScale'
-import { Hatch } from '../components/surfaces'
 import { Body, Label } from '../components/text'
 import { EASE_OUT } from '../theme/motion'
 import { useTheme } from '../theme/theme'
@@ -120,15 +119,8 @@ export function EmptyState({
                   pressedStyle={{ borderColor: colors.line2 }}
                 >
                   <View
-                    style={[
-                      styles.tile,
-                      {
-                        backgroundColor: colors.panel2,
-                        borderColor: colors.line,
-                      },
-                    ]}
+                    style={[styles.tile, { backgroundColor: colors.panel2 }]}
                   >
-                    <Hatch />
                     <LineIcon name={item.icon} size={18} color={colors.text} />
                   </View>
                   <View style={styles.cardText}>
@@ -178,18 +170,16 @@ const styles = StyleSheet.create({
     gap: 12,
     height: 64,
     paddingLeft: 12,
-    paddingRight: 18,
+    paddingRight: 20,
     borderWidth: 1,
-    borderRadius: radius.card,
+    borderRadius: radius.bubble,
   },
   tile: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: radius.field,
-    overflow: 'hidden',
+    borderRadius: radius.pill,
   },
   cardText: { gap: 4 },
   prompt: {

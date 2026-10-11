@@ -1,6 +1,7 @@
 import { createContext, use, useEffect, useMemo, useState } from 'react'
 import { useColorScheme } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
+import * as NavigationBar from 'expo-navigation-bar'
 import * as SystemUI from 'expo-system-ui'
 import type { ReactNode } from 'react'
 import { palettes } from './tokens'
@@ -46,6 +47,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // The window behind the app, seen during transitions and the keyboard.
     void SystemUI.setBackgroundColorAsync(palettes[name].bg)
+    // The navigation bar is transparent over the page; its buttons follow
+    // the theme.
+    NavigationBar.setStyle(name === 'dark' ? 'light' : 'dark')
   }, [name])
 
   const value = useMemo<Theme>(
