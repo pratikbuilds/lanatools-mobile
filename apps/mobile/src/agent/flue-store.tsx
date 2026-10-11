@@ -1,23 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFlueAgent } from '@flue/react'
 import { createFlueClient } from '@flue/sdk'
+import { useSession } from '../session/session'
 import { NEW, StoreContext, titleFrom } from './context'
-import { toThread } from './flue'
+import { CANT_START, toThread } from './flue'
 import type { ConversationSummary, Store } from './context'
+import type { Message } from './types'
 import type { ReactNode } from 'react'
 
 // Conversations with the LanaTools agent on Flue. The agent keeps each
 // conversation's messages; the app follows the active one live and keeps
 // only the list of conversations, for this session.
+//
+// Every request carries the user's Privy access token. The agent issues
+// conversation ids tied to that user and refuses anyone else's.
 
 const AGENT_URL = process.env.EXPO_PUBLIC_AGENT_URL ?? 'http://localhost:8787'
 
-/** A conversation id; until the agent issues them (docs/PLAN.md, auth). */
-function newId() {
-  const random = Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 0x100000000).toString(36),
-  )
-  return [Date.now().toString(36), ...random].join('')
+type Headers = () => Promise<Record<string, string>>
+
+async function startConversation(headers: Headers) {
+  const response = await fetch(`${AGENT_URL}/conversations`, {
+    method: 'POST',
+    headers: await headers(),
+  })
+  if (!response.ok) throw new Error(`The agent answered ${response.status}`)
+  const { id } = (await response.json()) as { id: string }
+  return id
+}
+
+/** A chat the agent never started: the message, and why it went nowhere. */
+function unstarted(id: string, text: string): Message[] {
+  return [
+    {
+      id: `${id}-u`,
+      role: 'user',
+      createdAt: Date.now(),
+      parts: [{ type: 'text', text }],
+    },
+    {
+      id: `${id}-a`,
+      role: 'assistant',
+      createdAt: Date.now(),
+      parts: [],
+      error: CANT_START,
+    },
+  ]
 }
 
 export function FlueConversationsProvider({
@@ -25,17 +53,34 @@ export function FlueConversationsProvider({
 }: {
   children: ReactNode
 }) {
+  const session = useSession()
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [activeId, setActiveId] = useState(NEW)
+  const [starting, setStarting] = useState(false)
+  // Chats whose first message never reached the agent, by local id.
+  const [failed, setFailed] = useState<Record<string, string>>({})
   // A new chat's first message, sent once its conversation is followed.
   const first = useRef<string | null>(null)
 
+  // Called on every request and reconnect, so a refreshed token is always
+  // the one sent.
+  const { getAccessToken } = session
+  const headers = useCallback<Headers>(async () => {
+    const token = await getAccessToken()
+    const headers: Record<string, string> = {}
+    if (token) headers.authorization = `Bearer ${token}`
+    return headers
+  }, [getAccessToken])
+
   const client = useMemo(
     () =>
-      activeId === NEW
+      activeId === NEW || activeId in failed
         ? undefined
-        : createFlueClient({ url: `${AGENT_URL}/agents/lana/${activeId}` }),
-    [activeId],
+        : createFlueClient({
+            url: `${AGENT_URL}/agents/lana/${activeId}`,
+            headers,
+          }),
+    [activeId, failed, headers],
   )
   const agent = useFlueAgent({ client })
   const { sendMessage, refresh } = agent
@@ -51,10 +96,14 @@ export function FlueConversationsProvider({
   }, [client, refresh, sendMessage])
 
   const messages = useMemo(
-    () => toThread(agent.messages, agent.status),
-    [agent.messages, agent.status],
+    () =>
+      activeId in failed
+        ? unstarted(activeId, failed[activeId] ?? '')
+        : toThread(agent.messages, agent.status),
+    [activeId, agent.messages, agent.status, failed],
   )
-  const working = agent.status === 'submitted' || agent.status === 'streaming'
+  const working =
+    starting || agent.status === 'submitted' || agent.status === 'streaming'
 
   const value = useMemo<Store>(() => {
     const summary = conversations.find((c) => c.id === activeId)
@@ -62,6 +111,27 @@ export function FlueConversationsProvider({
       setConversations((all) =>
         all.map((c) => (c.id === id ? { ...c, updatedAt: Date.now() } : c)),
       )
+    const add = (id: string, text: string) =>
+      setConversations((all) => [
+        { id, title: titleFrom(text), updatedAt: Date.now() },
+        ...all,
+      ])
+    const start = async (text: string) => {
+      setStarting(true)
+      try {
+        const id = await startConversation(headers)
+        add(id, text)
+        first.current = text
+        setActiveId(id)
+      } catch {
+        const id = `unstarted-${Date.now()}`
+        add(id, text)
+        setFailed((all) => ({ ...all, [id]: text }))
+        setActiveId(id)
+      } finally {
+        setStarting(false)
+      }
+    }
     return {
       conversations,
       active: summary ? { ...summary, messages } : null,
@@ -71,18 +141,12 @@ export function FlueConversationsProvider({
       send: (text) => {
         const trimmed = text.trim()
         if (!trimmed || working) return
-        if (activeId !== NEW) {
-          sendMessage(trimmed).catch(() => {})
-          touch(activeId)
+        if (activeId === NEW || activeId in failed) {
+          void start(trimmed)
           return
         }
-        const id = newId()
-        setConversations((all) => [
-          { id, title: titleFrom(trimmed), updatedAt: Date.now() },
-          ...all,
-        ])
-        first.current = trimmed
-        setActiveId(id)
+        sendMessage(trimmed).catch(() => {})
+        touch(activeId)
       },
       stop: () => void client?.abort(),
       rename: (id, title) =>
@@ -96,7 +160,16 @@ export function FlueConversationsProvider({
       // The agent prepares no transactions yet (docs/PLAN.md, milestone 6).
       settleTransaction: () => {},
     }
-  }, [activeId, client, conversations, messages, sendMessage, working])
+  }, [
+    activeId,
+    client,
+    conversations,
+    failed,
+    headers,
+    messages,
+    sendMessage,
+    working,
+  ])
 
   return <StoreContext value={value}>{children}</StoreContext>
 }

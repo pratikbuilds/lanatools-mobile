@@ -94,6 +94,10 @@ function toMessage(message: FlueConversationMessage): Message {
 }
 
 const FAILED = 'Your agent ran into a problem. Try again.'
+/** A new chat the agent would not start: unreachable, or signed out. */
+export const CANT_START =
+  "Couldn't start a chat with your agent. Check your connection and try again."
+
 const UNREACHABLE =
   "Couldn't reach your agent. Check your connection and try again."
 
