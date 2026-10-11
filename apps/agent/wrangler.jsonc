@@ -6,6 +6,8 @@
   // and secrets.
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "traces": { "enabled": true } },
+  // Public: the LanaTools production Privy app, whose users the agent serves.
+  "vars": { "PRIVY_APP_ID": "cmtu5w0xo00xn0ckyrqhcsgoc" },
   // Flue generates one Durable Object class per agent (Lana ->
   // FlueLanaAgent). Migrations are append-only: add a tag, never edit one.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FlueLanaAgent"] }],

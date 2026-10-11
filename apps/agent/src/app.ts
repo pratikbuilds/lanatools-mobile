@@ -1,10 +1,16 @@
 import { createAgentRouter } from '@flue/runtime/routing'
-import { Hono } from 'hono'
 import { Lana } from './agents/lana.ts'
+import { privyVerifier } from './auth.ts'
+import { routes } from './routes.ts'
+import type { Verify } from './auth.ts'
 
-const app = new Hono()
+// Privy's keys are fetched once per Worker isolate and cached by jose.
+let verifier: Verify | undefined
+function verify() {
+  const appId = process.env.PRIVY_APP_ID
+  if (!appId) throw new Error('PRIVY_APP_ID is not set')
+  verifier ??= privyVerifier(appId)
+  return verifier
+}
 
-app.get('/health', (c) => c.text('ok'))
-app.route('/agents/lana', createAgentRouter(Lana))
-
-export default app
+export default routes(verify, createAgentRouter(Lana))
