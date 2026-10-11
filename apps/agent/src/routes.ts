@@ -5,9 +5,9 @@ import { parseExpiry } from './tokens.ts'
 import type { AuthVariables, Verify } from './auth.ts'
 import type { TokenStore } from './tokens.ts'
 
-/** The app's LanaTools access token, and when it expires (epoch ms). */
+/** The app's LanaTools access token, and the seconds it has left. */
 export const TOKEN_HEADER = 'x-lanatools-token'
-export const EXPIRES_HEADER = 'x-lanatools-token-expires'
+export const EXPIRES_HEADER = 'x-lanatools-token-expires-in'
 
 /**
  * The agent's HTTP surface. Only /health is open: a new conversation needs
@@ -30,7 +30,13 @@ export function routes(
       const token = c.req.header(TOKEN_HEADER)
       const expiresAt = parseExpiry(c.req.header(EXPIRES_HEADER))
       if (c.req.method === 'POST' && token && expiresAt)
-        await tokens().save(c.get('userHash'), token, expiresAt)
+        // Storing it is best effort: a misconfigured key or a D1 hiccup
+        // costs this turn its tools, never the message itself.
+        try {
+          await tokens().save(c.get('userHash'), token, expiresAt)
+        } catch (error) {
+          console.error('Could not store the LanaTools token', error)
+        }
       await next()
     },
   )

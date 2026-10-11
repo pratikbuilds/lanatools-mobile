@@ -18,8 +18,9 @@ import { formatSol, formatUsdc } from '../wallet/balances'
 import { useBalances } from '../wallet/provider'
 
 /**
- * The LanaTools wallet: its full address, to copy, and what it holds. This
- * is the wallet the agent pays from and the one lanatools.sh shows.
+ * The wallet that signs: its full address, to copy, and what it holds. For
+ * a Google user that's the LanaTools wallet lanatools.sh shows; for a
+ * wallet sign-in, the wallet app they signed in with.
  */
 export default function Wallet() {
   const { colors } = useTheme()

@@ -10,9 +10,12 @@ import {
 import * as Crypto from 'expo-crypto'
 import * as SecureStore from 'expo-secure-store'
 import { AGENT_URL } from '../agent/config'
-import { useSession } from '../session/session'
+import { MOCK_AGENT, useSession } from '../session/session'
 import { RevokedError, link as approve, needsRefresh, refresh } from './oauth'
+import { callTool } from './mcp'
+import { RetryError } from './transactions'
 import type { CryptoKit, Grant, Tokens } from './oauth'
+import type { CallTool } from './transactions'
 import type { ReactNode } from 'react'
 
 // This user's LanaTools connection. The tokens stay on the phone, in
@@ -36,6 +39,11 @@ export type LanaToolsLink = {
   disconnect: () => Promise<void>
   /** A current access token, refreshed first if it is about to expire. */
   accessToken: () => Promise<AccessToken | null>
+  /**
+   * Calls one LanaTools tool as the user. Rejects with RetryError when
+   * LanaTools isn't connected, so callers never handle tokens.
+   */
+  call: CallTool
 }
 
 const kit: CryptoKit = {
@@ -51,6 +59,11 @@ const kit: CryptoKit = {
 
 /** Base58 addresses are valid SecureStore keys as they are. */
 const keyFor = (address: string) => `lanatools.tokens.${address}`
+
+const MOCK_GRANT: Grant = {
+  scopes: ['helius:read', 'jupiter:read', 'phoenix:read', 'payments:pay'],
+  limitUsd: '5',
+}
 
 const LinkContext = createContext<LanaToolsLink | null>(null)
 
@@ -68,6 +81,9 @@ export function LanaToolsProvider({ children }: { children: ReactNode }) {
   const tokens = useRef<Tokens | null>(null)
   // One refresh at a time: refresh tokens rotate, so a second would fail.
   const refreshing = useRef<Promise<Tokens | null> | null>(null)
+  // Bumped by connect and disconnect, so a refresh that was already in
+  // flight can't write back tokens the user has since replaced or removed.
+  const generation = useRef(0)
 
   const store = useCallback(
     async (next: Tokens | null, revoked = false) => {
@@ -100,30 +116,37 @@ export function LanaToolsProvider({ children }: { children: ReactNode }) {
   }, [address])
 
   const current = saved?.address === address ? saved : null
-  const status: LinkStatus = !address
-    ? session.status === 'loading'
-      ? 'loading'
-      : 'unlinked'
-    : !current
-      ? 'loading'
-      : current.tokens
-        ? 'linked'
-        : current.revoked
-          ? 'revoked'
-          : 'unlinked'
-  const grant = current?.tokens?.grant ?? null
+  // The mock agent plays back LanaTools calls, so it counts as connected.
+  const status: LinkStatus = MOCK_AGENT
+    ? 'linked'
+    : !address
+      ? session.status === 'loading'
+        ? 'loading'
+        : 'unlinked'
+      : !current
+        ? 'loading'
+        : current.tokens
+          ? 'linked'
+          : current.revoked
+            ? 'revoked'
+            : 'unlinked'
+  const grant = MOCK_AGENT ? MOCK_GRANT : (current?.tokens?.grant ?? null)
 
   const accessToken = useCallback(async (): Promise<AccessToken | null> => {
     const current = tokens.current
     if (!current) return null
     if (!needsRefresh(current.expiresAt))
       return { token: current.accessToken, expiresAt: current.expiresAt }
+    const started = generation.current
+    const stale = () => generation.current !== started
     refreshing.current ??= refresh(current)
       .then(async (next) => {
+        if (stale()) return null
         await store(next)
         return next
       })
       .catch(async (error: unknown) => {
+        if (stale()) return null
         if (error instanceof RevokedError) {
           await store(null, true)
           return null
@@ -145,9 +168,12 @@ export function LanaToolsProvider({ children }: { children: ReactNode }) {
       connect: async (choice) => {
         const privy = await getAccessToken()
         if (!privy) throw new Error('Sign in first')
-        await store(await approve(privy, choice, kit))
+        const tokens = await approve(privy, choice, kit)
+        generation.current += 1
+        await store(tokens)
       },
       disconnect: async () => {
+        generation.current += 1
         await store(null)
         // The agent forgets the access token it holds too. Best effort: it
         // expires within the hour anyway.
@@ -159,6 +185,12 @@ export function LanaToolsProvider({ children }: { children: ReactNode }) {
           }).catch(() => {})
       },
       accessToken,
+      call: async (name, args) => {
+        const access = await accessToken()
+        if (!access)
+          throw new RetryError('Connect LanaTools on the LanaTools page first.')
+        return callTool(access.token, name, args)
+      },
     }),
     [accessToken, getAccessToken, grant, status, store],
   )

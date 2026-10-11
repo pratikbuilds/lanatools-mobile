@@ -58,7 +58,7 @@ function Screens() {
           dims, and closes on back for free. */}
         <Stack.Screen name="sign-in" options={sheet} />
         <Stack.Screen name="tools" />
-        <Stack.Screen name="transaction" options={sheet} />
+        <Stack.Screen name="transaction" />
         <Stack.Screen name="wallet" options={sheet} />
       </Stack>
     </>

@@ -61,7 +61,7 @@ function call(
 
 const handOver = (token: string) => ({
   [TOKEN_HEADER]: token,
-  [EXPIRES_HEADER]: String(Date.now() + 60 * 60 * 1000),
+  [EXPIRES_HEADER]: '3600',
 })
 
 async function newConversation(sub: string) {
@@ -148,4 +148,22 @@ test('disconnecting forgets the token', async () => {
   const response = await call('/lanatools/token', alice, 'DELETE')
   assert.equal(response.status, 204)
   assert.equal(await tokens.get(await userHash(ALICE)), null)
+})
+
+test('a token that cannot be stored never fails the message', async () => {
+  const broken = routes(
+    () => verifier,
+    () => {
+      throw new Error('LANATOOLS_TOKEN_KEY is not set')
+    },
+    agent,
+  )
+  const response = await broken.request('/conversations', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${await token(ALICE)}`,
+      ...handOver('mcp-a'),
+    },
+  })
+  assert.equal(response.status, 201)
 })

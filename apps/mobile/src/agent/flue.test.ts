@@ -208,4 +208,28 @@ describe('transactionFrom', () => {
     assert.equal(transactionFrom(JSON.stringify(sent)), null)
     assert.equal(transactionFrom('Tool error: insufficient_scope'), null)
   })
+
+  const call = (toolName: string, output: unknown) =>
+    toThread(
+      [
+        reply('a1', [
+          {
+            type: 'dynamic-tool',
+            toolName: `mcp__lanatools__${toolName}`,
+            toolCallId: 't1',
+            state: 'output-available',
+            input: {},
+            output,
+          },
+        ]),
+      ],
+      'idle',
+    )[0]?.parts.map((part) => part.type)
+
+  it('makes a card only for tools that prepare a transaction', () => {
+    const output = `Structured content:\n${JSON.stringify(result)}`
+    assert.deepEqual(call('jupiter_swap', output), ['tool', 'transaction'])
+    assert.deepEqual(call('get_transaction_status', output), ['tool'])
+    assert.deepEqual(call('call', output), ['tool'])
+  })
 })

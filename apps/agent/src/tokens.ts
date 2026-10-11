@@ -2,8 +2,9 @@
 //
 // The app keeps the refresh token; the agent only ever holds an access
 // token, which expires within the hour. It is stored encrypted (AES-GCM,
-// bound to the user's hash) and read back only until it expires, so the
-// agent never keeps a credential that outlives the token itself.
+// bound to the user's hash) and read back only until it expires; expired
+// rows are deleted on the next save. The agent never keeps a credential
+// that outlives an access token.
 
 /** The slice of D1 the store uses, so tests can pass an in-memory one. */
 export type Db = {
@@ -41,7 +42,12 @@ export function tokenStore(
   now: () => number = Date.now,
 ): TokenStore {
   let ready: Promise<unknown> | undefined
-  const table = () => (ready ??= db.exec(SCHEMA))
+  // A failed setup is retried on the next call, not cached as failed.
+  const table = () =>
+    (ready ??= db.exec(SCHEMA).catch((error: unknown) => {
+      ready = undefined
+      throw error
+    }))
   const key = crypto.subtle.importKey(
     'raw',
     fromBase64(keyBase64),
@@ -114,15 +120,17 @@ export function tokenStore(
   }
 }
 
-/** The longest a handed-over token is kept, whatever expiry it claims. */
-export const MAX_TOKEN_LIFE_MS = 24 * 60 * 60 * 1000
+/** The longest a handed-over token is kept, whatever lifetime it claims. */
+export const MAX_TOKEN_LIFE_S = 60 * 60
 
 /**
- * The expiry the app sent with a token, as epoch milliseconds: a number in
- * the future, capped at a day. Null if it is missing or makes no sense.
+ * When a handed-over token expires, as epoch milliseconds on this clock:
+ * the app sends the seconds it has left, so a phone clock that is off
+ * doesn't matter. Capped at an hour, LanaTools' access token lifetime.
+ * Null if the value is missing or makes no sense.
  */
-export function parseExpiry(value: string | undefined, now = Date.now()) {
-  const at = Number(value)
-  if (!value || !Number.isFinite(at) || at <= now) return null
-  return Math.min(at, now + MAX_TOKEN_LIFE_MS)
+export function parseExpiry(seconds: string | undefined, now = Date.now()) {
+  const left = Number(seconds)
+  if (!seconds || !Number.isFinite(left) || left <= 0) return null
+  return now + Math.min(left, MAX_TOKEN_LIFE_S) * 1000
 }

@@ -54,13 +54,14 @@ export type TransactionPart = {
   id: string
   /** The tool that prepared it: `jupiter_swap`, `phoenix_market_order`. */
   tool: string
-  state: 'awaiting' | 'sent' | 'declined' | 'failed'
+  /** `pending`: signed and handed to LanaTools, not yet confirmed. */
+  state: 'awaiting' | 'sent' | 'pending' | 'declined' | 'failed'
   review: TransactionReview
   /** The wallet that signs and pays the fee. */
   wallet: string
   /** Epoch ms after which LanaTools will not send it. */
   expiresAt: number
-  signature?: string
+  signature?: string | null
   error?: string
 }
 

@@ -130,10 +130,32 @@ export function transactionFrom(output: unknown): TransactionPart | null {
   }
 }
 
+/**
+ * LanaTools' tools that prepare a transaction. Only their results become a
+ * card to sign: not get_transaction_status, not a paid API's JSON.
+ */
+export const TRANSACTION_TOOLS = new Set([
+  'jupiter_swap',
+  'solana_transfer',
+  'solana_token_transfer',
+  'phoenix_activate_account',
+  'phoenix_deposit',
+  'phoenix_withdraw',
+  'phoenix_market_order',
+  'phoenix_limit_order',
+  'phoenix_cancel_orders',
+  'phoenix_close_position',
+])
+
 function toParts(part: FlueConversationPart): Part[] {
   const mapped = toPart(part)
   if (!mapped) return []
-  if (mapped.type !== 'tool' || mapped.state !== 'done') return [mapped]
+  if (
+    mapped.type !== 'tool' ||
+    mapped.state !== 'done' ||
+    !TRANSACTION_TOOLS.has(mapped.name)
+  )
+    return [mapped]
   const transaction = transactionFrom(mapped.output)
   return transaction ? [mapped, transaction] : [mapped]
 }

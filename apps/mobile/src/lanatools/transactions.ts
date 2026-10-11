@@ -3,83 +3,148 @@ import {
   getBase64Decoder,
   getBase64Encoder,
 } from '@solana/kit'
-import { callTool } from './mcp.ts'
+import { isNoWallet, isUserCancel } from '../session/wallet.ts'
+import { ToolError } from './mcp.ts'
 import type { Signer } from '../session/context'
 
-// Signing a transaction LanaTools prepared for this phone ("local"
-// delivery), then handing it back to LanaTools to send. The wallet signs
-// and never broadcasts: LanaTools checks the bytes are unchanged, relays
-// them and confirms.
+// A transaction LanaTools prepared for this phone ("local" delivery), from
+// review to settled. The wallet signs and never broadcasts: LanaTools checks
+// the bytes are the ones it built, relays them and confirms.
+//
+// Everything about how a request can end lives here, so callers only ever
+// record an Outcome or show a RetryError.
 
-type Prepared = {
-  transaction: string
-  account: string
-  messageToSign?: string
-}
+/** What became of a prepared transaction. */
+export type Outcome =
+  /** LanaTools relayed it. */
+  | { state: 'sent'; signature: string }
+  /**
+   * Signed and handed to LanaTools, but not confirmed: it may still land.
+   * Never prepare it again without checking its status first.
+   */
+  | { state: 'pending'; signature: string | null }
+  /** The user said no; nothing was signed. */
+  | { state: 'declined' }
+  /** Nothing went out, and this request can't go out any more. */
+  | { state: 'failed'; error: string }
 
+/** Something the user can fix and try again; nothing was sent. */
+export class RetryError extends Error {}
+
+/** Calls one LanaTools tool with the user's access token. */
+export type CallTool = (
+  name: string,
+  args: Record<string, unknown>,
+) => Promise<unknown>
+
+/** The parts of LanaTools' TransactionResult this module reads. */
 type Result = {
-  id: string
   status: string
   signature: string | null
-  transaction?: Prepared
+  transaction?: { transaction: string; account: string; messageToSign?: string }
 }
 
-/** Already on its way or settled: nothing to sign. */
-const SENT = new Set(['submitting', 'confirmed', 'unknown'])
+const EXPIRED = 'This transaction expired. Ask your agent to prepare it again.'
 
-/** Why this transaction can't be signed, in words for the user. */
-export class SignError extends Error {}
+/**
+ * A request's outcome from LanaTools' status, or null while it still waits
+ * for a signature. Throws RetryError while LanaTools can't say yet.
+ */
+export function settled(result: Result): Outcome | null {
+  switch (result.status) {
+    case 'ready':
+      return null
+    case 'submitting':
+    case 'confirmed':
+      return result.signature
+        ? { state: 'sent', signature: result.signature }
+        : { state: 'pending', signature: null }
+    case 'unknown':
+      return { state: 'pending', signature: result.signature }
+    case 'failed':
+      return { state: 'failed', error: 'The transaction failed on Solana.' }
+    case 'expired':
+    case 'transaction_expired':
+    case 'closed':
+      return { state: 'failed', error: EXPIRED }
+    default:
+      // open, preparing, unavailable: LanaTools isn't done with it yet.
+      throw new RetryError(
+        'LanaTools is still preparing this transaction. Try again in a moment.',
+      )
+  }
+}
 
-export type Sent = { status: string; signature: string }
+/** The request's outcome now, or null if it still waits to be signed. */
+export async function checkStatus(call: CallTool, id: string) {
+  return settled((await call('get_transaction_status', { id })) as Result)
+}
 
 /**
  * Fetches the request's current transaction (rebuilt by LanaTools if its
- * blockhash ran out), signs it with `signer`, and sends it. Resolves with
- * the signature; rejects with `SignError` when it can't be signed here,
- * and with the wallet's own error when the user declines in it.
+ * blockhash ran out), signs it with `signer`, and hands it to LanaTools.
+ * Resolves with the Outcome to record; rejects with RetryError when the
+ * user can fix the problem and try again.
  */
 export async function signAndSend(
-  token: string,
+  call: CallTool,
   id: string,
   signer: Signer,
-): Promise<Sent> {
-  const current = (await callTool(token, 'get_transaction_status', {
-    id,
-  })) as Result
-  if (SENT.has(current.status) && current.signature)
-    return { status: current.status, signature: current.signature }
+): Promise<Outcome> {
+  const current = (await call('get_transaction_status', { id })) as Result
+  const already = settled(current)
+  if (already) return already
   const prepared = current.transaction
-  if (current.status !== 'ready' || !prepared)
-    throw new SignError(
-      current.status === 'expired' || current.status === 'transaction_expired'
-        ? 'This transaction expired. Ask your agent to prepare it again.'
-        : `This transaction can't be signed now (${current.status}).`,
-    )
+  if (!prepared) throw new RetryError('LanaTools sent nothing to sign yet.')
   if (prepared.account !== signer.address)
-    throw new SignError(
-      `This transaction is for ${short(prepared.account)}, not the wallet you signed in with.`,
-    )
+    return {
+      state: 'failed',
+      error: `This was prepared for ${short(prepared.account)}, not the wallet you're signed in with.`,
+    }
 
-  const signed = await signer.signTransaction(
-    new Uint8Array(getBase64Encoder().encode(prepared.transaction)),
-  )
-  // Phoenix activation also needs the wallet to sign a login message.
-  const messageSignature = prepared.messageToSign
-    ? getBase58Decoder().decode(
+  let signed: Uint8Array
+  let messageSignature: string | undefined
+  try {
+    signed = await signer.signTransaction(
+      new Uint8Array(getBase64Encoder().encode(prepared.transaction)),
+    )
+    // Phoenix activation also needs the wallet to sign a login message.
+    if (prepared.messageToSign)
+      messageSignature = getBase58Decoder().decode(
         await signer.signMessage(
           new TextEncoder().encode(prepared.messageToSign),
         ),
       )
-    : undefined
+  } catch (error) {
+    throw new RetryError(
+      isUserCancel(error)
+        ? 'You cancelled in your wallet. Nothing was sent.'
+        : isNoWallet(error)
+          ? 'No wallet app on this phone answered. Open it and try again.'
+          : `Your wallet couldn't sign: ${message(error)}`,
+    )
+  }
 
-  const sent = (await callTool(token, 'send_transaction', {
-    id,
-    transaction: getBase64Decoder().decode(signed),
-    ...(messageSignature ? { messageSignature } : {}),
-  })) as Result
-  if (!sent.signature)
-    throw new SignError(`LanaTools did not send it (${sent.status}).`)
-  return { status: sent.status, signature: sent.signature }
+  // From here the signed bytes exist, so an unclear answer is "pending",
+  // never "nothing was sent".
+  try {
+    const sent = (await call('send_transaction', {
+      id,
+      transaction: getBase64Decoder().decode(signed),
+      ...(messageSignature ? { messageSignature } : {}),
+    })) as Result
+    return settled(sent) ?? { state: 'pending', signature: sent.signature }
+  } catch (error) {
+    if (error instanceof ToolError && error.code === 'transaction_expired')
+      return { state: 'failed', error: EXPIRED }
+    if (error instanceof ToolError && error.code === 'invalid_input')
+      return { state: 'failed', error: error.message }
+    return { state: 'pending', signature: null }
+  }
+}
+
+function message(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function short(address: string) {

@@ -1,4 +1,5 @@
 import { createContext, use } from 'react'
+import type { Outcome } from '../lanatools/transactions'
 import type { Conversation } from './types'
 
 // What every screen reads: the conversations, from whichever agent is on.
@@ -8,10 +9,8 @@ export const NEW = 'new'
 
 export type ConversationSummary = Omit<Conversation, 'messages'>
 
-export type TransactionOutcome =
-  | { state: 'sent'; signature: string }
-  | { state: 'declined' }
-  | { state: 'failed'; error: string }
+/** What became of a prepared transaction (lanatools/transactions.ts). */
+export type TransactionOutcome = Outcome
 
 export type Store = {
   conversations: ConversationSummary[]
@@ -24,10 +23,7 @@ export type Store = {
   stop: () => void
   rename: (id: string, title: string) => void
   remove: (id: string) => void
-  /**
-   * Records what became of a prepared transaction, and tells the agent:
-   * sent with its signature, declined, or failed with the reason.
-   */
+  /** Records what became of a prepared transaction, and tells the agent. */
   settleTransaction: (
     messageId: string,
     partId: string,

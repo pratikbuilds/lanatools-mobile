@@ -8,7 +8,9 @@ with an agent that uses the tools of the **production LanaTools MCP server**
 of its own: every tool comes from the remote MCP server. The app performs the
 MCP sign-in and shares the resulting access token with the agent.
 
-Status: main decisions settled on 2026-10-08 (see "Decisions"). Nothing is built yet.
+Status: main decisions settled on 2026-10-08 (see "Decisions"). Milestones 0
+to 4 are built; milestone 6 (signing on the phone) is built and awaits its
+first signed mainnet swap.
 
 ## Sources
 
@@ -24,7 +26,7 @@ Status: main decisions settled on 2026-10-08 (see "Decisions"). Nothing is built
 ┌──────────────── Android ──────────────────┐  in-app consent:      ┌─ LanaTools prod ─────────────┐
 │ apps/mobile  (Expo SDK 57, RN 0.86)       │  Privy token + PKCE   │ mcp.lanatools.sh             │
 │  Privy Expo SDK ─ embedded Solana wallet  ├──────────────────────►│  /first-party/authorize (new)│
-│  MWA (any wallet app) ─ sign-in only      │  ◄── { code } ──────  │  /token (+ refresh)          │
+│  MWA (any wallet app) ─ sign-in, signing  │  ◄── { code } ──────  │  /token (+ refresh)          │
 │  MCP tokens in SecureStore (refresh stays │                       │  /mcp  (all the tools)       │
 │    on the phone)                          │                       └──────────▲───────────────────┘
 │  @flue/sdk client ─ chat stream           │                                  │
@@ -72,11 +74,15 @@ Status: main decisions settled on 2026-10-08 (see "Decisions"). Nothing is built
      token, keyed by the Privy user. The MCP `auth` callback reads it from
      there.
    - The agent never stores a credential that outlives an access token.
-4. **Transactions are signed on the phone, never by the agent.** LanaTools
-   cannot sign swaps on the server; its signer policy allows only USDC
-   payments. When an MCP tool returns an unsigned transaction (today
-   `jupiter_build_swap`), the app decodes it and shows what it does. The user
-   then signs with the Privy embedded wallet.
+4. **Transactions are signed on the phone, never by the agent.** Every
+   LanaTools transaction tool (`jupiter_swap`, `phoenix_*`,
+   `solana_transfer`, `solana_token_transfer`) takes `delivery: "local"`
+   and a `wallet`: LanaTools builds the unsigned transaction for that wallet
+   and returns its own review of it. The agent always asks for local
+   delivery for the user's signing wallet, which is the embedded wallet for
+   a Google sign-in and the wallet app for a wallet sign-in (over MWA). The
+   user signs in the app; the app hands the signed bytes to LanaTools'
+   `send_transaction`, which checks they are unchanged and relays them.
 5. **The production Privy app.** MCP grants belong to Privy users of
    LanaTools' production app, so the mobile app must sign in to that same app.
    It needs a new Privy **App Client** for Android, with the package name, the
@@ -269,16 +275,19 @@ controller`). The send button is filled only once there is text.
      move."
    - Drag down, tap the scrim, or use back to close. Android draws no
      grabber, so the sheet draws its own.
-3. **Connect LanaTools sheet** (milestone 4): the native consent card.
-   - Signed-in identity.
-   - Helius, Jupiter, Phoenix and Pay, all ticked by default.
-   - Spending limit.
-   - Connect.
-   - Opens the first time the agent needs LanaTools.
-4. **Transaction sheet** (milestone 6).
-   - Opens when a tool result holds an unsigned transaction.
-   - Shows what the app itself decoded: network, amounts, fee, expiry.
-   - Buttons: **Sign and send**, or Decline.
+3. **LanaTools page** (milestone 4): the native consent card, then the
+   connection.
+   - The six tool families in the web consent page's words; Helius and Pay
+     ticked by default.
+   - Spending limit with Pay.
+   - Connect; once connected, the approved families, Manage on
+     lanatools.sh and Disconnect.
+   - Opened from the Connect bar above the composer, the drawer, or Settings.
+4. **Review page** (milestone 6).
+   - Opened from a transaction card in the thread.
+   - Shows LanaTools' review (title, description, fields), the wallet that
+     signs and pays the fee, and the time left.
+   - Buttons: **{action} with wallet app / LanaTools wallet**, or Decline.
 5. **Account sheet.**
    - Embedded wallet address and balance, with copy.
    - Sign-in method.
@@ -347,22 +356,22 @@ auth: () => tokens.get(userHash), optional: true })`.
   - A 401 during a turn shows up as a tool error. The app refreshes the
     token before the next message.
 - **Signatures, without agent-side tools.**
-  - The app watches for `dynamic-tool` parts named
-    `mcp__lanatools__jupiter_build_swap` with `output-available`. It reads
-    `transaction` (base64 v0, unsigned) from the structured output.
-  - The app checks that the fee payer is the user's embedded wallet, and that
-    the transaction hasn't passed `lastValidBlockHeight` or `expireAt`.
-  - If `router === 'jupiterz'`, it submits through Jupiter's execute
-    endpoint with the `requestId`.
-  - The agent's instructions say: after building a transaction, stop and ask
-    the user to review it in the app. Never claim it was sent.
-  - After signing, the app sends a follow-up message with the signature, or a
-    decline, so the agent can continue.
-  - New LanaTools transaction tools (for example `solana_transfer` on an
-    unmerged branch) get a renderer in the app. Nothing changes in the agent.
-  - Privy's Expo provider accepts only `@solana/web3.js` v1
-    `VersionedTransaction` objects. Use web3.js for signing and
-    `@solana/kit` everywhere else.
+  - A new conversation's `initialData` names the signing wallet and its
+    kind. The agent passes it as `wallet` with `delivery: "local"`, never
+    `embedded` or `link`, and never calls `send_transaction`.
+  - The app turns a ready local result of a transaction tool into a card
+    (`agent/flue.ts`). Results of other tools never become cards.
+  - `lanatools/transactions.ts` owns the rest. It fetches the request's
+    current transaction from `get_transaction_status` (rebuilt by LanaTools
+    after its blockhash runs out), checks it is for the signing wallet,
+    signs it without changing it (Privy's provider takes the serialized
+    bytes; MWA's `signTransaction` takes `@solana/kit` transactions), signs
+    Phoenix activation's login message, and calls `send_transaction`.
+  - It resolves to one outcome: sent, pending (signed but unconfirmed: it
+    may still land, so it is never prepared again blindly), declined or
+    failed. Problems the user can fix are a RetryError and send nothing.
+  - Outcomes are kept in SecureStore by request id, and the agent hears each
+    one as a `transaction` signal, which the thread doesn't show.
 - **Secrets.** No secret ever goes in an `EXPO_PUBLIC_*` variable.
 
 ## Networks
@@ -389,7 +398,7 @@ Each milestone ends with a check on a real device or emulator, and a commit.
 | 4a  | **LanaTools: first-party consent** (lanatools repo). `POST /first-party/authorize`, allowlist, tests, PR, production deploy                                                                                                                                   | The endpoint test suite passes; the deployed endpoint refuses a third-party client_id                                                               |
 | 4   | **LanaTools link.** One-time DCR registration on production, native consent card, PKCE and code exchange in the app, SecureStore tokens and refresh, `X-LanaTools-Token` handoff, D1 token table, `useMcpConnection` to production, link UI and revoked state | "What's in my wallet?" runs `get_wallet_holdings` through LanaTools; revoking in the dashboard shows "Reconnect" in the app                         |
 | 5   | **Full chat UI.** Every Flue part type: markdown text, folded reasoning, tool cards, data parts. Plus stop, errors, conversation list, SSE or long-poll                                                                                                       | Tool calls, refusals and paid calls display correctly; the app survives losing the network mid-reply                                                |
-| 6   | **Transaction approval.** Detect the `jupiter_build_swap` output, decode in the app, approval sheet, Privy `signAndSendTransaction` (or Jupiter execute for JupiterZ), report back to the agent, no automatic retry of a send that may already have gone out  | A swap of about $1 on mainnet signed from chat; declining stops the agent cleanly                                                                   |
+| 6   | **Transaction approval.** Local delivery for the signing wallet, LanaTools' review as a card, review page, sign with Privy or MWA, `send_transaction`, report the outcome to the agent, never retry a send that may already have gone out                     | A swap of about $1 on mainnet signed from chat; declining stops the agent cleanly                                                                   |
 | 7   | **Release.** Release keystore, SHA-256 registered with Privy, EAS build, agent deployment, Solana dApp Store listing                                                                                                                                          | Signed APK installs on a phone and signs in against production                                                                                      |
 
 Later: set up agent payments from the phone instead of the web dashboard. This

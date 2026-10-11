@@ -18,9 +18,9 @@ module.exports = defineConfig([
   },
   expo,
   {
-    // Flue's agent hooks share React's `use` prefix but not its rules: an
-    // agent may declare an MCP connection conditionally. `cloudflare:`
-    // modules are provided by the Workers runtime.
+    // Flue's agent hooks share React's `use` prefix but not React's rules
+    // (an agent is a render function Flue calls, not a component).
+    // `cloudflare:` modules are provided by the Workers runtime.
     files: ['apps/agent/**'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',

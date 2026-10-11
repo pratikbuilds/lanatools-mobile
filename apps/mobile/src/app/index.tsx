@@ -84,7 +84,7 @@ function Chat() {
                 onPress={store.newChat}
               />
             )}
-            {/* The wallet, always in view: address and balances. */}
+            {/* The signing wallet's USDC, always in view; it opens the wallet. */}
             {session.status === 'signedIn' && session.address && <WalletChip />}
             {(session.status === 'signedOut' ||
               session.status === 'walletError') && (

@@ -51,13 +51,15 @@ export function signInMethodFrom(accounts: LinkedLoginAccount[]): SignInMethod {
 }
 
 /**
- * The Solana wallet app the user signed in with, most recent first: the
- * wallet that signs their transactions over Mobile Wallet Adapter. Null
- * for a Google user, whose embedded wallet signs instead.
+ * The Solana wallet app the user last signed in with: the wallet that
+ * signs their transactions over Mobile Wallet Adapter. Null when they last
+ * signed in with Google, even with a wallet linked: their embedded wallet
+ * signs instead.
  */
 export function externalWalletFrom(
   accounts: LinkedLoginAccount[],
 ): string | null {
+  if (signInMethodFrom(accounts) !== 'wallet') return null
   let best: { address: string; at: number } | null = null
   for (const account of accounts) {
     if (methodOf(account) !== 'wallet' || !account.address) continue

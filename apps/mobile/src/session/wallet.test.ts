@@ -142,7 +142,7 @@ test('a phone without an MWA wallet is recognised', () => {
 test('the wallet a user signed in with signs their transactions', () => {
   assert.equal(
     externalWalletFrom([
-      { type: 'google_oauth', verified_at: 3 },
+      { type: 'google_oauth', verified_at: 1 },
       {
         type: 'wallet',
         address: 'Embedded1',
@@ -171,6 +171,21 @@ test('a Google user has no external wallet to sign with', () => {
     externalWalletFrom([
       { type: 'google_oauth', verified_at: 1 },
       { type: 'wallet', address: 'Embedded1', connector_type: 'embedded' },
+    ]),
+    null,
+  )
+})
+
+test('a Google sign-in signs with the embedded wallet, even with a wallet linked', () => {
+  assert.equal(
+    externalWalletFrom([
+      {
+        type: 'wallet',
+        address: 'Phantom1',
+        chain_type: 'solana',
+        verified_at: 1,
+      },
+      { type: 'google_oauth', latest_verified_at: 5 },
     ]),
     null,
   )

@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { Linking, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
+import { useConversations } from '../agent/store'
+import { useLanaTools } from '../lanatools/link'
+import { RetryError, checkStatus } from '../lanatools/transactions'
 import { Button } from '../components/Button'
 import { StatusDot } from '../components/StatusDot'
 import { Hatch } from '../components/surfaces'
@@ -15,6 +19,7 @@ const STATUS: Record<
 > = {
   awaiting: { dot: 'warn', text: 'Needs your signature' },
   sent: { dot: 'live', text: 'Signed and sent' },
+  pending: { dot: 'warn', text: 'Signed · confirming' },
   declined: { dot: 'idle', text: 'Declined' },
   failed: { dot: 'bad', text: 'Not sent' },
 }
@@ -36,7 +41,31 @@ export function TransactionCard({
   messageId: string
 }) {
   const { colors } = useTheme()
+  const lanatools = useLanaTools()
+  const store = useConversations()
+  const [checking, setChecking] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
   const status = STATUS[part.state]
+
+  // A pending transaction may still land: ask LanaTools what became of it.
+  const check = async () => {
+    setChecking(true)
+    setNote(null)
+    try {
+      const outcome = await checkStatus(lanatools.call, part.id)
+      if (outcome && outcome.state !== 'pending')
+        store.settleTransaction(messageId, part.id, outcome)
+      else setNote('Still confirming. Check again in a moment.')
+    } catch (error) {
+      setNote(
+        error instanceof RetryError
+          ? error.message
+          : "Couldn't reach LanaTools. Try again.",
+      )
+    } finally {
+      setChecking(false)
+    }
+  }
   const fields = part.review.fields.slice(0, SHOWN)
   return (
     <View
@@ -110,6 +139,20 @@ export function TransactionCard({
             }
             style={styles.action}
           />
+        ) : part.state === 'pending' ? (
+          <>
+            <Button
+              size="lg"
+              label={checking ? 'Checking…' : 'Check status'}
+              disabled={checking}
+              onPress={() => void check()}
+              style={styles.action}
+            />
+            <Small style={styles.note}>
+              {note ??
+                'LanaTools has it but hasn’t confirmed it yet. It may still land, so don’t sign it again.'}
+            </Small>
+          </>
         ) : part.state === 'failed' && part.error ? (
           <Small tone="bad" style={styles.note}>
             {part.error}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFlueAgent } from '@flue/react'
 import { createFlueClient } from '@flue/sdk'
 import { useLanaTools } from '../lanatools/link'
+import { useTransactionOutcomes } from '../lanatools/outcomes'
 import { useSession } from '../session/session'
 import { AGENT_URL } from './config'
 import { NEW, StoreContext, titleFrom } from './context'
@@ -70,10 +71,12 @@ function signalFor(id: string, outcome: TransactionOutcome) {
   switch (outcome.state) {
     case 'sent':
       return `The user reviewed and signed transaction ${id} in the app, and LanaTools sent it. Signature: ${outcome.signature}. Tell them in one sentence; call get_transaction_status with id ${id} if you need to confirm it landed.`
+    case 'pending':
+      return `The user signed transaction ${id} in the app and LanaTools has it, but it isn't confirmed yet${outcome.signature ? ` (signature ${outcome.signature})` : ''}. It may still land: don't prepare it again. Check it with get_transaction_status, id ${id}.`
     case 'declined':
       return `The user declined transaction ${id} in the app. Nothing was sent. Don't prepare it again unless they ask.`
     case 'failed':
-      return `Transaction ${id} could not be signed or sent: ${outcome.error}. Nothing was sent.`
+      return `Transaction ${id} did not go out: ${outcome.error}`
   }
 }
 
@@ -90,10 +93,6 @@ export function FlueConversationsProvider({
   const [failed, setFailed] = useState<Record<string, string>>({})
   // A new chat's first message, sent once its conversation is followed.
   const first = useRef<string | null>(null)
-  // What became of each prepared transaction on this phone, by request id.
-  const [outcomes, setOutcomes] = useState<Record<string, TransactionOutcome>>(
-    {},
-  )
   // The agent prepares transactions for the wallet that signs them here.
   const { signer } = session
   const signerAddress = signer?.address ?? null
@@ -112,7 +111,10 @@ export function FlueConversationsProvider({
     if (token) headers.authorization = `Bearer ${token}`
     if (lanatools) {
       headers['x-lanatools-token'] = lanatools.token
-      headers['x-lanatools-token-expires'] = String(lanatools.expiresAt)
+      // Seconds left, not a timestamp, so the phone's clock doesn't matter.
+      headers['x-lanatools-token-expires-in'] = String(
+        Math.max(0, Math.floor((lanatools.expiresAt - Date.now()) / 1000)),
+      )
     }
     return headers
   }, [accessToken, getAccessToken])
@@ -145,12 +147,21 @@ export function FlueConversationsProvider({
     ).then(refresh, () => {})
   }, [client, refresh, sendMessage, signerAddress, signerKind])
 
+  const thread = useMemo(
+    () => toThread(agent.messages, agent.status),
+    [agent.messages, agent.status],
+  )
+  const { outcomes, record } = useTransactionOutcomes(
+    thread.flatMap((m) =>
+      m.parts.flatMap((p) => (p.type === 'transaction' ? [p.id] : [])),
+    ),
+  )
   const messages = useMemo(
     () =>
       activeId in failed
         ? unstarted(activeId, failed[activeId] ?? '')
-        : withOutcomes(toThread(agent.messages, agent.status), outcomes),
-    [activeId, agent.messages, agent.status, failed, outcomes],
+        : withOutcomes(thread, outcomes),
+    [activeId, failed, outcomes, thread],
   )
   const working =
     starting || agent.status === 'submitted' || agent.status === 'streaming'
@@ -210,7 +221,7 @@ export function FlueConversationsProvider({
         if (id === activeId) setActiveId(NEW)
       },
       settleTransaction: (_messageId, partId, outcome) => {
-        setOutcomes((all) => ({ ...all, [partId]: outcome }))
+        record(partId, outcome)
         // The agent hears what happened as a signal, which the thread
         // doesn't show, and carries on from there.
         client
@@ -231,6 +242,7 @@ export function FlueConversationsProvider({
     failed,
     headers,
     messages,
+    record,
     sendMessage,
     working,
   ])
