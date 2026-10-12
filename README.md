@@ -149,22 +149,23 @@ keytool -genkeypair -keystore ~/.config/lanatools-mobile/release.keystore \
 Put its path, alias and passwords in `~/.config/lanatools-mobile/release.env`
 as `export LANATOOLS_RELEASE_KEYSTORE=...`, `LANATOOLS_RELEASE_KEY_ALIAS`,
 `LANATOOLS_RELEASE_KEYSTORE_PASSWORD` and `LANATOOLS_RELEASE_KEY_PASSWORD`,
-register the keystore's SHA-256 on the Privy Android client, then:
+then:
 
 ```sh
 apps/mobile/scripts/build-release.sh    # apps/mobile/dist/lanatools-<version>.apk
 ```
 
-Back the keystore up. Android only installs an update signed with the same
-key, and Privy only accepts sign-ins from a registered certificate. Releases
-are published as APKs on the
+Back the keystore up: Android only installs an update signed with the same
+key. Privy identifies the app by package name and URL scheme, not by
+certificate, so debug and release builds share one app client. Releases are
+published as APKs on the
 [GitHub releases page](https://github.com/pratikbuilds/lanatools-mobile/releases/latest).
 
 ### Running your own copy
 
 The app is built for LanaTools' production service. A fork that wants its
 own backend needs its own Privy app with an Android app client (package
-name, signing-certificate SHA-256 and the `lanatools` scheme), and a
+name and the `lanatools` scheme), and a
 first-party OAuth client allowlisted on its own LanaTools MCP server. The
 OAuth client ID in `apps/mobile/src/lanatools/oauth.ts` is a public PKCE
 client with no secret.

@@ -4,8 +4,8 @@
 # Signing comes from LANATOOLS_RELEASE_KEYSTORE, LANATOOLS_RELEASE_KEY_ALIAS,
 # LANATOOLS_RELEASE_KEYSTORE_PASSWORD and LANATOOLS_RELEASE_KEY_PASSWORD, read
 # from $LANATOOLS_RELEASE_ENV (default ~/.config/lanatools-mobile/release.env)
-# when that file exists. The keystore's SHA-256 must be registered on the
-# Privy Android client, or sign-in fails in the release build.
+# when that file exists. Privy identifies the app by package name and URL
+# scheme, so no certificate registration is needed.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
