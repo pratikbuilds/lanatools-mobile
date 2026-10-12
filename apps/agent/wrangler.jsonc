@@ -6,6 +6,8 @@
   // and secrets.
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "traces": { "enabled": true } },
+  // The app is built against this URL (apps/mobile/.env.production).
+  "routes": [{ "pattern": "agent.lanatools.sh", "custom_domain": true }],
   // Public: the LanaTools production Privy app, whose users the agent serves.
   "vars": { "PRIVY_APP_ID": "cmtu5w0xo00xn0ckyrqhcsgoc" },
   // Each user's latest LanaTools access token, encrypted (src/tokens.ts).

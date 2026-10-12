@@ -10,6 +10,8 @@ never by the agent.
 
 > **Status:** pre-release, Android only. It runs against Solana mainnet and
 > the production LanaTools service, so swaps and paid calls move real money.
+> The latest APK is on the
+> [releases page](https://github.com/pratikbuilds/lanatools-mobile/releases/latest).
 
 ## How it works
 
@@ -131,7 +133,32 @@ npx wrangler secret put LANATOOLS_TOKEN_KEY
 npm run deploy --workspace apps/agent
 ```
 
-Then point `EXPO_PUBLIC_AGENT_URL` at the Worker and rebuild the app.
+`wrangler.jsonc` serves the Worker at `agent.lanatools.sh`, the URL that
+release builds are compiled against (`apps/mobile/.env.production`). A fork
+changes both.
+
+### Building a release APK
+
+Release builds are signed with a keystore that is never in the repository:
+
+```sh
+keytool -genkeypair -keystore ~/.config/lanatools-mobile/release.keystore \
+  -alias lanatools -keyalg RSA -keysize 4096 -validity 10950
+```
+
+Put its path, alias and passwords in `~/.config/lanatools-mobile/release.env`
+as `export LANATOOLS_RELEASE_KEYSTORE=...`, `LANATOOLS_RELEASE_KEY_ALIAS`,
+`LANATOOLS_RELEASE_KEYSTORE_PASSWORD` and `LANATOOLS_RELEASE_KEY_PASSWORD`,
+register the keystore's SHA-256 on the Privy Android client, then:
+
+```sh
+apps/mobile/scripts/build-release.sh    # apps/mobile/dist/lanatools-<version>.apk
+```
+
+Back the keystore up. Android only installs an update signed with the same
+key, and Privy only accepts sign-ins from a registered certificate. Releases
+are published as APKs on the
+[GitHub releases page](https://github.com/pratikbuilds/lanatools-mobile/releases/latest).
 
 ### Running your own copy
 

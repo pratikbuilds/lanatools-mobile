@@ -11,6 +11,7 @@
     "platforms": ["android"],
     "android": {
       "package": "sh.lanatools.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0b2fb2",
         "foregroundImage": "./assets/brand/adaptive-foreground.png",
@@ -23,7 +24,12 @@
       "expo-router",
       "expo-status-bar",
       "expo-system-ui",
-      ["expo-navigation-bar", { "enforceContrast": false }],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -85,7 +91,8 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "react-native-quick-crypto"
+      "react-native-quick-crypto",
+      "./plugins/with-release-signing"
     ],
     "experiments": {
       "typedRoutes": true
