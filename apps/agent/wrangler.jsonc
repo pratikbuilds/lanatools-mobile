@@ -6,16 +6,17 @@
   // and secrets.
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "traces": { "enabled": true } },
+  // The app is built against this URL (apps/mobile/.env.production).
+  "routes": [{ "pattern": "agent.lanatools.sh", "custom_domain": true }],
   // Public: the LanaTools production Privy app, whose users the agent serves.
   "vars": { "PRIVY_APP_ID": "cmtu5w0xo00xn0ckyrqhcsgoc" },
   // Each user's latest LanaTools access token, encrypted (src/tokens.ts).
-  // The id is a placeholder for local development; deploying needs the id
-  // of a real database (`npx wrangler d1 create lanatools-agent`).
+  // A fork creates its own (`npx wrangler d1 create lanatools-agent`).
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "lanatools-agent",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "2544d09e-95f9-4e8b-aa9d-6eb5b4a6d300",
     },
   ],
   // Flue generates one Durable Object class per agent (Lana ->
